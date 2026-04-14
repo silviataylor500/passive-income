@@ -26,6 +26,33 @@ interface Deposit {
   createdAt: string
 }
 
+interface Withdrawal {
+  id: string
+  userId: string
+  name: string
+  email: string
+  amount: number
+  trc20_address: string
+  status: 'pending' | 'approved' | 'rejected' | 'completed'
+  createdAt: string
+}
+
+interface ChatUser {
+  userId: string
+  name: string
+  email: string
+  messageCount: number
+  lastMessage: string
+}
+
+interface Message {
+  id: string
+  userId: string
+  message: string
+  senderRole: 'user' | 'co-admin'
+  createdAt: string
+}
+
 interface PriceData {
   bitcoin: {
     usd: number
@@ -36,13 +63,18 @@ export default function AdminDashboard() {
   const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [deposits, setDeposits] = useState<Deposit[]>([])
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
+  const [chatUsers, setChatUsers] = useState<ChatUser[]>([])
+  const [selectedChatUser, setSelectedChatUser] = useState<string | null>(null)
+  const [chatMessages, setChatMessages] = useState<Message[]>([])
+  const [chatInput, setChatInput] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [btcPrice, setBtcPrice] = useState<number>(0)
   const [trc20Address, setTrc20Address] = useState<string>('')
   const [newTrc20Address, setNewTrc20Address] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<'users' | 'deposits' | 'settings'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'deposits' | 'withdrawals' | 'chat' | 'settings'>('users')
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -55,6 +87,8 @@ export default function AdminDashboard() {
     fetchBtcPrice()
     fetchTrc20Address()
     fetchDeposits()
+    fetchWithdrawals()
+    fetchChatUsers()
   }, [navigate])
 
   const fetchBtcPrice = async () => {
@@ -108,6 +142,42 @@ export default function AdminDashboard() {
       setDeposits(response.data)
     } catch (err: any) {
       console.error('Fetch deposits error:', err)
+    }
+  }
+
+  const fetchWithdrawals = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get('/api/admin/withdrawals', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setWithdrawals(response.data)
+    } catch (err: any) {
+      console.error('Fetch withdrawals error:', err)
+    }
+  }
+
+  const fetchChatUsers = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get('/api/admin/chats', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setChatUsers(response.data)
+    } catch (err: any) {
+      console.error('Fetch chat users error:', err)
+    }
+  }
+
+  const fetchChatMessages = async (userId: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get(`/api/admin/chat/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setChatMessages(response.data)
+    } catch (err: any) {
+      console.error('Fetch chat messages error:', err)
     }
   }
 
@@ -191,6 +261,51 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleApproveWithdrawal = async (withdrawalId: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      await axios.put(`/api/admin/withdrawals/${withdrawalId}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      fetchWithdrawals()
+      alert('Withdrawal approved!')
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to approve withdrawal')
+    }
+  }
+
+  const handleRejectWithdrawal = async (withdrawalId: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      await axios.put(`/api/admin/withdrawals/${withdrawalId}/reject`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      fetchWithdrawals()
+      alert('Withdrawal rejected!')
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to reject withdrawal')
+    }
+  }
+
+  const handleSendChatMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedChatUser || !chatInput.trim()) return
+
+    try {
+      const token = localStorage.getItem('token')
+      await axios.post('/api/admin/chat/send', {
+        userId: selectedChatUser,
+        message: chatInput,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setChatInput('')
+      fetchChatMessages(selectedChatUser)
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to send message')
+    }
+  }
+
   const handleInvestmentChange = (amount: number) => {
     if (!editingUser) return
     
@@ -206,7 +321,6 @@ export default function AdminDashboard() {
     })
   }
 
-  // Helper to safely format numbers
   const formatUSD = (val: any) => {
     const num = parseFloat(val)
     return isNaN(num) ? '0.00' : num.toFixed(2)
@@ -242,10 +356,10 @@ export default function AdminDashboard() {
         {error && <div className="bg-red-500/20 border border-red-500 text-red-500 p-4 rounded-lg mb-6">{error}</div>}
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-8 border-b border-slate-700">
+        <div className="flex gap-4 mb-8 border-b border-slate-700 overflow-x-auto">
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 font-semibold transition-colors ${
+            className={`px-4 py-2 font-semibold transition-colors whitespace-nowrap ${
               activeTab === 'users'
                 ? 'text-yellow-500 border-b-2 border-yellow-500'
                 : 'text-slate-400 hover:text-white'
@@ -255,7 +369,7 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('deposits')}
-            className={`px-4 py-2 font-semibold transition-colors ${
+            className={`px-4 py-2 font-semibold transition-colors whitespace-nowrap ${
               activeTab === 'deposits'
                 ? 'text-yellow-500 border-b-2 border-yellow-500'
                 : 'text-slate-400 hover:text-white'
@@ -264,8 +378,28 @@ export default function AdminDashboard() {
             Deposits ({deposits.length})
           </button>
           <button
+            onClick={() => setActiveTab('withdrawals')}
+            className={`px-4 py-2 font-semibold transition-colors whitespace-nowrap ${
+              activeTab === 'withdrawals'
+                ? 'text-yellow-500 border-b-2 border-yellow-500'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Withdrawals ({withdrawals.length})
+          </button>
+          <button
+            onClick={() => { setActiveTab('chat'); fetchChatUsers(); }}
+            className={`px-4 py-2 font-semibold transition-colors whitespace-nowrap ${
+              activeTab === 'chat'
+                ? 'text-yellow-500 border-b-2 border-yellow-500'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Chat ({chatUsers.length})
+          </button>
+          <button
             onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 font-semibold transition-colors ${
+            className={`px-4 py-2 font-semibold transition-colors whitespace-nowrap ${
               activeTab === 'settings'
                 ? 'text-yellow-500 border-b-2 border-yellow-500'
                 : 'text-slate-400 hover:text-white'
@@ -278,8 +412,8 @@ export default function AdminDashboard() {
         {/* Users Tab */}
         {activeTab === 'users' && (
           <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
-            <table className="w-full text-left">
-              <thead className="bg-slate-700 text-slate-300 uppercase text-xs">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-700 text-slate-300 uppercase">
                 <tr>
                   <th className="px-6 py-4">User</th>
                   <th className="px-6 py-4">Investment</th>
@@ -316,8 +450,8 @@ export default function AdminDashboard() {
         {/* Deposits Tab */}
         {activeTab === 'deposits' && (
           <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
-            <table className="w-full text-left">
-              <thead className="bg-slate-700 text-slate-300 uppercase text-xs">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-700 text-slate-300 uppercase">
                 <tr>
                   <th className="px-6 py-4">User</th>
                   <th className="px-6 py-4">Transaction ID</th>
@@ -348,7 +482,7 @@ export default function AdminDashboard() {
                           {deposit.status.charAt(0).toUpperCase() + deposit.status.slice(1)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-400">
+                      <td className="px-6 py-4 text-slate-400">
                         {new Date(deposit.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
@@ -364,6 +498,147 @@ export default function AdminDashboard() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Withdrawals Tab */}
+        {activeTab === 'withdrawals' && (
+          <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-700 text-slate-300 uppercase">
+                <tr>
+                  <th className="px-6 py-4">User</th>
+                  <th className="px-6 py-4">Amount</th>
+                  <th className="px-6 py-4">Address</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700">
+                {withdrawals.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-4 text-center text-slate-400">No withdrawals found</td>
+                  </tr>
+                ) : (
+                  withdrawals.map((withdrawal) => (
+                    <tr key={withdrawal.id} className="hover:bg-slate-700/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-semibold">{withdrawal.name}</div>
+                        <div className="text-xs text-slate-400">{withdrawal.email}</div>
+                      </td>
+                      <td className="px-6 py-4">${formatUSD(withdrawal.amount)}</td>
+                      <td className="px-6 py-4 font-mono text-xs truncate">{withdrawal.trc20_address}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          withdrawal.status === 'completed' ? 'bg-blue-500/20 text-blue-400' :
+                          withdrawal.status === 'approved' ? 'bg-green-500/20 text-green-400' :
+                          withdrawal.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                          'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          {withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-400">
+                        {new Date(withdrawal.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        {withdrawal.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <button onClick={() => handleApproveWithdrawal(withdrawal.id)} className="text-green-400 hover:text-green-300 text-sm">Approve</button>
+                            <button onClick={() => handleRejectWithdrawal(withdrawal.id)} className="text-red-400 hover:text-red-300 text-sm">Reject</button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Chat Tab */}
+        {activeTab === 'chat' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Chat Users List */}
+            <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+              <div className="bg-slate-700 px-6 py-4 border-b border-slate-600">
+                <h2 className="text-lg font-bold text-white">Users</h2>
+              </div>
+              <div className="overflow-y-auto max-h-[500px]">
+                {chatUsers.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400">No chats yet</div>
+                ) : (
+                  chatUsers.map((user) => (
+                    <button
+                      key={user.userId}
+                      onClick={() => { setSelectedChatUser(user.userId); fetchChatMessages(user.userId); }}
+                      className={`w-full text-left px-6 py-4 border-b border-slate-700 hover:bg-slate-700/50 transition ${
+                        selectedChatUser === user.userId ? 'bg-slate-700' : ''
+                      }`}
+                    >
+                      <div className="font-semibold text-white">{user.name}</div>
+                      <div className="text-xs text-slate-400">{user.email}</div>
+                      <div className="text-xs text-slate-500 mt-1">{user.messageCount} messages</div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Chat Messages */}
+            <div className="lg:col-span-2 bg-slate-800 rounded-xl border border-slate-700 overflow-hidden flex flex-col h-[500px]">
+              {selectedChatUser ? (
+                <>
+                  <div className="bg-slate-700 px-6 py-4 border-b border-slate-600">
+                    <h2 className="text-lg font-bold text-white">Chat</h2>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {chatMessages.length === 0 ? (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-slate-400">No messages yet</p>
+                      </div>
+                    ) : (
+                      chatMessages.map((msg) => (
+                        <div key={msg.id} className={`flex ${msg.senderRole === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-xs px-4 py-2 rounded-lg ${
+                            msg.senderRole === 'user'
+                              ? 'bg-yellow-500 text-slate-900'
+                              : 'bg-slate-700 text-white'
+                          }`}>
+                            <p className="text-sm">{msg.message}</p>
+                            <p className="text-xs mt-1 opacity-70">
+                              {new Date(msg.createdAt).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <form onSubmit={handleSendChatMessage} className="bg-slate-700 border-t border-slate-600 p-4 flex gap-2">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder="Type a message..."
+                      className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!chatInput.trim()}
+                      className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-yellow-700 text-slate-900 font-bold rounded-lg transition"
+                    >
+                      Send
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-slate-400">Select a user to start chatting</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

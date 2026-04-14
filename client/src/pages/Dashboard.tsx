@@ -111,6 +111,18 @@ export default function Dashboard() {
               >
                 Deposit Now
               </button>
+              <button
+                onClick={() => navigate('/withdrawal')}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm"
+              >
+                Withdraw
+              </button>
+              <button
+                onClick={() => navigate('/chat')}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold text-sm"
+              >
+                Support Chat
+              </button>
               <span className="text-slate-300 text-sm">Welcome, {user?.name || 'User'}</span>
               <button
                 onClick={handleLogout}
