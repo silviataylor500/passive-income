@@ -138,14 +138,14 @@ export default function Home() {
               <div className="flex-shrink-0 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center font-bold text-black">2</div>
               <div>
                 <p className="text-white font-semibold mb-2">Get Investment</p>
-                <p className="text-slate-400 text-sm">Admin sets your investment amount in your dashboard.</p>
+                <p className="text-slate-400 text-sm">Your investment amount will be automatically shown in your dashboard.</p>
               </div>
             </div>
             <div className="flex gap-4">
               <div className="flex-shrink-0 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center font-bold text-black">3</div>
               <div>
                 <p className="text-white font-semibold mb-2">Earn Daily</p>
-                <p className="text-slate-400 text-sm">Earn fixed daily returns on your investment automatically.</p>
+                <p className="text-slate-400 text-sm">Earn fixed daily returns on your investment automatically will our digging system.</p>
               </div>
             </div>
           </div>
@@ -154,7 +154,7 @@ export default function Home() {
         {/* Disclaimer */}
         <div className="mt-8 bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-6">
           <p className="text-yellow-400 text-sm">
-            <strong>Disclaimer:</strong> This is a simulation for educational purposes only. Not financial advice or a guarantee of returns.
+            <strong>Disclaimer:</strong> Equity Market are subject to market risk. Read the offer document carefully before investing. But here we made that quotes prove wrong.
           </p>
         </div>
       </div>
