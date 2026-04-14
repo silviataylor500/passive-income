@@ -16,6 +16,16 @@ interface User {
   createdAt: string
 }
 
+interface Deposit {
+  id: string
+  userId: string
+  name: string
+  email: string
+  transactionId: string
+  status: 'pending' | 'approved' | 'rejected'
+  createdAt: string
+}
+
 interface PriceData {
   bitcoin: {
     usd: number
@@ -25,10 +35,14 @@ interface PriceData {
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
+  const [deposits, setDeposits] = useState<Deposit[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [btcPrice, setBtcPrice] = useState<number>(0)
+  const [trc20Address, setTrc20Address] = useState<string>('')
+  const [newTrc20Address, setNewTrc20Address] = useState<string>('')
+  const [activeTab, setActiveTab] = useState<'users' | 'deposits' | 'settings'>('users')
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -39,6 +53,8 @@ export default function AdminDashboard() {
 
     fetchUsers()
     fetchBtcPrice()
+    fetchTrc20Address()
+    fetchDeposits()
   }, [navigate])
 
   const fetchBtcPrice = async () => {
@@ -52,8 +68,20 @@ export default function AdminDashboard() {
     }
   }
 
+  const fetchTrc20Address = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get('/api/admin/settings/trc20', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setTrc20Address(response.data.trc20_address || '')
+      setNewTrc20Address(response.data.trc20_address || '')
+    } catch (error) {
+      console.error('Failed to fetch TRC20 address:', error)
+    }
+  }
+
   const fetchUsers = async () => {
-    console.log('Fetching users...');
     try {
       const token = localStorage.getItem('token')
       const response = await axios.get('/api/admin/users', {
@@ -68,6 +96,18 @@ export default function AdminDashboard() {
       if (err.response?.status === 403) {
         navigate('/dashboard')
       }
+    }
+  }
+
+  const fetchDeposits = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get('/api/admin/deposits', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setDeposits(response.data)
+    } catch (err: any) {
+      console.error('Fetch deposits error:', err)
     }
   }
 
@@ -105,7 +145,52 @@ export default function AdminDashboard() {
     }
   }
 
-  // Auto-calculate BTC when investment amount changes
+  const handleSaveTrc20Address = async () => {
+    if (!newTrc20Address.trim()) {
+      alert('Please enter a TRC20 address')
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      await axios.post('/api/admin/settings/trc20', {
+        trc20_address: newTrc20Address,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setTrc20Address(newTrc20Address)
+      alert('TRC20 address saved successfully!')
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to save TRC20 address')
+    }
+  }
+
+  const handleApproveDeposit = async (depositId: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      await axios.put(`/api/admin/deposits/${depositId}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      fetchDeposits()
+      alert('Deposit approved!')
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to approve deposit')
+    }
+  }
+
+  const handleRejectDeposit = async (depositId: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      await axios.put(`/api/admin/deposits/${depositId}/reject`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      fetchDeposits()
+      alert('Deposit rejected!')
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to reject deposit')
+    }
+  }
+
   const handleInvestmentChange = (amount: number) => {
     if (!editingUser) return
     
@@ -156,40 +241,164 @@ export default function AdminDashboard() {
 
         {error && <div className="bg-red-500/20 border border-red-500 text-red-500 p-4 rounded-lg mb-6">{error}</div>}
 
-        <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
-          <table className="w-full text-left">
-            <thead className="bg-slate-700 text-slate-300 uppercase text-xs">
-              <tr>
-                <th className="px-6 py-4">User</th>
-                <th className="px-6 py-4">Investment</th>
-                <th className="px-6 py-4">Rate</th>
-                <th className="px-6 py-4">BTC</th>
-                <th className="px-6 py-4">Daily Earn</th>
-                <th className="px-6 py-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-700/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-semibold">{user.name}</div>
-                    <div className="text-xs text-slate-400">{user.email}</div>
-                  </td>
-                  <td className="px-6 py-4">${formatUSD(user.investmentAmount)}</td>
-                  <td className="px-6 py-4 text-green-400">{formatPercent(user.dailyReturnRate)}%</td>
-                  <td className="px-6 py-4 text-xs">{formatBTC(user.btcAllocated)}</td>
-                  <td className="px-6 py-4 text-green-400">${formatUSD(user.dailyEarnings)}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      <button onClick={() => setEditingUser(user)} className="text-blue-400 hover:text-blue-300 text-sm">Edit</button>
-                      <button onClick={() => handleDeleteUser(user.id)} className="text-red-400 hover:text-red-300 text-sm">Delete</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Tabs */}
+        <div className="flex gap-4 mb-8 border-b border-slate-700">
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 font-semibold transition-colors ${
+              activeTab === 'users'
+                ? 'text-yellow-500 border-b-2 border-yellow-500'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Users ({users.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('deposits')}
+            className={`px-4 py-2 font-semibold transition-colors ${
+              activeTab === 'deposits'
+                ? 'text-yellow-500 border-b-2 border-yellow-500'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Deposits ({deposits.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-4 py-2 font-semibold transition-colors ${
+              activeTab === 'settings'
+                ? 'text-yellow-500 border-b-2 border-yellow-500'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Settings
+          </button>
         </div>
+
+        {/* Users Tab */}
+        {activeTab === 'users' && (
+          <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
+            <table className="w-full text-left">
+              <thead className="bg-slate-700 text-slate-300 uppercase text-xs">
+                <tr>
+                  <th className="px-6 py-4">User</th>
+                  <th className="px-6 py-4">Investment</th>
+                  <th className="px-6 py-4">Rate</th>
+                  <th className="px-6 py-4">BTC</th>
+                  <th className="px-6 py-4">Daily Earn</th>
+                  <th className="px-6 py-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-700/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-semibold">{user.name}</div>
+                      <div className="text-xs text-slate-400">{user.email}</div>
+                    </td>
+                    <td className="px-6 py-4">${formatUSD(user.investmentAmount)}</td>
+                    <td className="px-6 py-4 text-green-400">{formatPercent(user.dailyReturnRate)}%</td>
+                    <td className="px-6 py-4 text-xs">{formatBTC(user.btcAllocated)}</td>
+                    <td className="px-6 py-4 text-green-400">${formatUSD(user.dailyEarnings)}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <button onClick={() => setEditingUser(user)} className="text-blue-400 hover:text-blue-300 text-sm">Edit</button>
+                        <button onClick={() => handleDeleteUser(user.id)} className="text-red-400 hover:text-red-300 text-sm">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Deposits Tab */}
+        {activeTab === 'deposits' && (
+          <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
+            <table className="w-full text-left">
+              <thead className="bg-slate-700 text-slate-300 uppercase text-xs">
+                <tr>
+                  <th className="px-6 py-4">User</th>
+                  <th className="px-6 py-4">Transaction ID</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700">
+                {deposits.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-4 text-center text-slate-400">No deposits found</td>
+                  </tr>
+                ) : (
+                  deposits.map((deposit) => (
+                    <tr key={deposit.id} className="hover:bg-slate-700/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-semibold">{deposit.name}</div>
+                        <div className="text-xs text-slate-400">{deposit.email}</div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-xs">{deposit.transactionId}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          deposit.status === 'approved' ? 'bg-green-500/20 text-green-400' :
+                          deposit.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                          'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          {deposit.status.charAt(0).toUpperCase() + deposit.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-400">
+                        {new Date(deposit.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        {deposit.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <button onClick={() => handleApproveDeposit(deposit.id)} className="text-green-400 hover:text-green-300 text-sm">Approve</button>
+                            <button onClick={() => handleRejectDeposit(deposit.id)} className="text-red-400 hover:text-red-300 text-sm">Reject</button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <h2 className="text-xl font-bold text-white mb-6">Settings</h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">TRC20 Deposit Address</label>
+                <p className="text-xs text-slate-500 mb-3">This address will be shown to users when they make a deposit</p>
+                <input
+                  type="text"
+                  value={newTrc20Address}
+                  onChange={(e) => setNewTrc20Address(e.target.value)}
+                  placeholder="Enter TRC20 address (e.g., TRxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
+                />
+                <button
+                  onClick={handleSaveTrc20Address}
+                  className="mt-4 px-6 py-2 bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold rounded-lg transition"
+                >
+                  Save TRC20 Address
+                </button>
+                {trc20Address && (
+                  <div className="mt-4 p-4 bg-slate-700/50 rounded-lg">
+                    <p className="text-xs text-slate-400 mb-1">Current Address:</p>
+                    <p className="text-sm font-mono text-green-400 break-all">{trc20Address}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Edit Modal */}

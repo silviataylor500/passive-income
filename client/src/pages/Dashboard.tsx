@@ -105,6 +105,12 @@ export default function Dashboard() {
                   Admin Panel
                 </button>
               )}
+              <button
+                onClick={() => navigate('/deposit')}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm"
+              >
+                Deposit Now
+              </button>
               <span className="text-slate-300 text-sm">Welcome, {user?.name || 'User'}</span>
               <button
                 onClick={handleLogout}
