@@ -34,17 +34,22 @@ export default function AdminDashboard() {
   }, [navigate])
 
   const fetchUsers = async () => {
+    console.log('Fetching users...');
     try {
       const token = localStorage.getItem('token')
+      console.log('Token found:', !!token);
       const response = await axios.get('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` },
       })
+      console.log('Users fetched successfully:', response.data);
       setUsers(response.data)
       setLoading(false)
     } catch (err: any) {
+      console.error('Fetch users error:', err);
       setError(err.response?.data?.message || 'Failed to fetch users')
       setLoading(false)
       if (err.response?.status === 403) {
+        console.log('Access forbidden, redirecting to dashboard');
         navigate('/dashboard')
       }
     }
@@ -101,6 +106,8 @@ export default function AdminDashboard() {
   }
 
   if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Loading Admin Panel...</div>
+
+  console.log('Rendering AdminDashboard with users:', users.length);
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">
