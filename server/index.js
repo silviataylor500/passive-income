@@ -75,6 +75,17 @@ async function initDatabase() {
       )
     `);
 
+    // Migrate existing role column to support co-admin if it doesn't already
+    try {
+      await connection.execute(`
+        ALTER TABLE users MODIFY role ENUM('user', 'admin', 'co-admin') DEFAULT 'user'
+      `);
+      console.log('Role column updated to support co-admin');
+    } catch (migrationError) {
+      // If the column already has co-admin, this will fail silently
+      console.log('Role column already supports co-admin or migration skipped');
+    }
+
     // Create settings table for storing TRC20 address
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS settings (
@@ -379,7 +390,8 @@ app.put('/api/admin/users/:id', authMiddleware, adminMiddleware, async (req, res
     connection.release();
     res.json({ message: 'User updated successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update user' });
+    console.error('User update error:', error.message);
+    res.status(500).json({ message: `Failed to update user: ${error.message}` });
   }
 });
 
