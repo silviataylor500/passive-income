@@ -145,7 +145,7 @@ export default function Home() {
               <div className="flex-shrink-0 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center font-bold text-black">3</div>
               <div>
                 <p className="text-white font-semibold mb-2">Earn Daily</p>
-                <p className="text-slate-400 text-sm">Earn fixed daily returns on your investment automatically will our digging system.</p>
+                <p className="text-slate-400 text-sm">Earn fixed daily returns on your investment automatically with our new technology of digging.</p>
               </div>
             </div>
           </div>
