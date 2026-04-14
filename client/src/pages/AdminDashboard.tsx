@@ -34,17 +34,22 @@ export default function AdminDashboard() {
   }, [navigate])
 
   const fetchUsers = async () => {
+    console.log('Fetching users...');
     try {
       const token = localStorage.getItem('token')
+      console.log('Token found:', !!token);
       const response = await axios.get('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` },
       })
+      console.log('Users fetched successfully:', response.data);
       setUsers(response.data)
       setLoading(false)
     } catch (err: any) {
+      console.error('Fetch users error:', err);
       setError(err.response?.data?.message || 'Failed to fetch users')
       setLoading(false)
       if (err.response?.status === 403) {
+        console.log('Access forbidden, redirecting to dashboard');
         navigate('/dashboard')
       }
     }
@@ -84,7 +89,25 @@ export default function AdminDashboard() {
     }
   }
 
+  // Helper to safely format numbers
+  const formatUSD = (val: any) => {
+    const num = parseFloat(val)
+    return isNaN(num) ? '0.00' : num.toFixed(2)
+  }
+
+  const formatBTC = (val: any) => {
+    const num = parseFloat(val)
+    return isNaN(num) ? '0.00000000' : num.toFixed(8)
+  }
+
+  const formatPercent = (val: any) => {
+    const num = parseFloat(val)
+    return isNaN(num) ? '0.00' : num.toFixed(2)
+  }
+
   if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Loading Admin Panel...</div>
+
+  console.log('Rendering AdminDashboard with users:', users.length);
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">
@@ -115,10 +138,10 @@ export default function AdminDashboard() {
                     <div className="font-semibold">{user.name}</div>
                     <div className="text-xs text-slate-400">{user.email}</div>
                   </td>
-                  <td className="px-6 py-4">${user.investmentAmount.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-green-400">{user.dailyReturnRate}%</td>
-                  <td className="px-6 py-4 text-xs">{user.btcAllocated.toFixed(8)}</td>
-                  <td className="px-6 py-4 text-green-400">${user.dailyEarnings.toFixed(2)}</td>
+                  <td className="px-6 py-4">${formatUSD(user.investmentAmount)}</td>
+                  <td className="px-6 py-4 text-green-400">{formatPercent(user.dailyReturnRate)}%</td>
+                  <td className="px-6 py-4 text-xs">{formatBTC(user.btcAllocated)}</td>
+                  <td className="px-6 py-4 text-green-400">${formatUSD(user.dailyEarnings)}</td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
                       <button onClick={() => setEditingUser(user)} className="text-blue-400 hover:text-blue-300 text-sm">Edit</button>
