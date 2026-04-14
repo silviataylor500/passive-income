@@ -191,11 +191,13 @@ export default function AdminDashboard() {
         investmentAmount: editingUser.investmentAmount,
         dailyReturnRate: editingUser.dailyReturnRate,
         btcAllocated: editingUser.btcAllocated,
+        role: editingUser.role,
       }, {
         headers: { Authorization: `Bearer ${token}` },
       })
       setEditingUser(null)
       fetchUsers()
+      alert('User updated successfully!')
     } catch (err: any) {
       alert(err.response?.data?.message || 'Update failed')
     }
@@ -711,6 +713,19 @@ export default function AdminDashboard() {
                   onChange={(e) => setEditingUser({ ...editingUser, btcAllocated: parseFloat(e.target.value) || 0 })}
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-yellow-500"
                 />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">User Role</label>
+                <select
+                  value={editingUser.role}
+                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
+                >
+                  <option value="user">User</option>
+                  <option value="co-admin">Co-Admin</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <p className="text-[10px] text-slate-500 mt-1 italic">* Change user role: User (normal), Co-Admin (deposits/withdrawals/chat), Admin (full access)</p>
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="submit" className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-2 rounded-lg">Save Changes</button>
