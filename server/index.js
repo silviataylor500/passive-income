@@ -355,17 +355,27 @@ app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) =>
   }
 });
 
-// Admin: Update user investment/return rate
+// Admin: Update user investment/return rate and role
 app.put('/api/admin/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { investmentAmount, dailyReturnRate, btcAllocated } = req.body;
+    const { investmentAmount, dailyReturnRate, btcAllocated, role } = req.body;
     const dailyEarnings = (investmentAmount * dailyReturnRate) / 100;
     
     const connection = await pool.getConnection();
-    await connection.execute(
-      'UPDATE users SET investmentAmount = ?, dailyReturnRate = ?, btcAllocated = ?, dailyEarnings = ? WHERE id = ?',
-      [investmentAmount, dailyReturnRate, btcAllocated, dailyEarnings, req.params.id]
-    );
+    
+    // If role is provided, update it; otherwise just update the financial fields
+    if (role) {
+      await connection.execute(
+        'UPDATE users SET investmentAmount = ?, dailyReturnRate = ?, btcAllocated = ?, dailyEarnings = ?, role = ? WHERE id = ?',
+        [investmentAmount, dailyReturnRate, btcAllocated, dailyEarnings, role, req.params.id]
+      );
+    } else {
+      await connection.execute(
+        'UPDATE users SET investmentAmount = ?, dailyReturnRate = ?, btcAllocated = ?, dailyEarnings = ? WHERE id = ?',
+        [investmentAmount, dailyReturnRate, btcAllocated, dailyEarnings, req.params.id]
+      );
+    }
+    
     connection.release();
     res.json({ message: 'User updated successfully' });
   } catch (error) {
