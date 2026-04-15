@@ -22,9 +22,18 @@ interface UserProfile {
   unlockedLevel: number
 }
 
+interface Settings {
+  level1_rate: number
+  level2_rate: number
+  level3_rate: number
+  level4_rate: number
+  level5_rate: number
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserProfile | null>(null)
+  const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [btcPrice, setBtcPrice] = useState(0)
@@ -36,33 +45,30 @@ export default function Dashboard() {
       return
     }
 
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get('/api/user/profile', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const profileRes = await axios.get('/api/user/profile', {
+          headers: { Authorization: `Bearer ${token}` },
         })
-        setUser(response.data)
+        setUser(profileRes.data)
+
+        const settingsRes = await axios.get('/api/settings/all', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        setSettings(settingsRes.data)
+
+        const btcRes = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd')
+        setBtcPrice(btcRes.data.bitcoin.usd)
+
         setLoading(false)
       } catch (err: any) {
-        console.error('Profile fetch error:', err)
-        setError(err.response?.data?.message || 'Failed to fetch profile')
+        console.error('Data fetch error:', err)
+        setError(err.response?.data?.message || 'Failed to fetch dashboard data')
         setLoading(false)
       }
     }
 
-    const fetchBtcPrice = async () => {
-      try {
-        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd')
-        setBtcPrice(response.data.bitcoin.usd)
-      } catch (err) {
-        console.error('Failed to fetch BTC price:', err)
-      }
-    }
-
-    fetchProfile()
-    fetchBtcPrice()
+    fetchData()
   }, [navigate])
 
   const handleLogout = () => {
@@ -87,10 +93,9 @@ export default function Dashboard() {
     )
   }
 
-  // Helper to safely format numbers
   const formatUSD = (val: any) => {
     const num = parseFloat(val)
-    return isNaN(num) ? '0.00' : num.toFixed(2)
+    return isNaN(num) ? '0.00' : num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
   const formatBTC = (val: any) => {
@@ -100,7 +105,7 @@ export default function Dashboard() {
 
   const formatPercent = (val: any) => {
     const num = parseFloat(val)
-    return isNaN(num) ? '0.00' : num.toFixed(2)
+    return isNaN(num) ? '0.000' : num.toFixed(3)
   }
 
   const isLevelUnlocked = (level: number) => {
@@ -108,13 +113,36 @@ export default function Dashboard() {
   }
 
   const levels = [
-    { name: 'BASIC', level: 0 },
-    { name: 'Level 1', level: 1 },
-    { name: 'Level 2', level: 2 },
-    { name: 'Level 3', level: 3 },
-    { name: 'Level 4', level: 4 },
-    { name: 'Level 5', level: 5 },
+    { name: 'BASIC', level: 0, rate: 1.00 }, // Default Basic Rate
+    { name: 'Level 1', level: 1, rate: settings?.level1_rate || 0.05 },
+    { name: 'Level 2', level: 2, rate: settings?.level2_rate || 0.10 },
+    { name: 'Level 3', level: 3, rate: settings?.level3_rate || 0.15 },
+    { name: 'Level 4', level: 4, rate: settings?.level4_rate || 0.20 },
+    { name: 'Level 5', level: 5, rate: settings?.level5_rate || 0.25 },
   ]
+
+  // CALCULATE DYNAMIC RETURN RATE (Average of unlocked levels)
+  const calculateAverageReturnRate = () => {
+    if (!user) return 0;
+    const unlockedLevels = levels.filter(l => l.level <= user.unlockedLevel);
+    if (unlockedLevels.length === 0) return 0;
+    const sum = unlockedLevels.reduce((acc, curr) => acc + curr.rate, 0);
+    return sum / unlockedLevels.length;
+  }
+
+  // CALCULATE TOTAL DAILY EARNINGS (Sum of earnings from each level)
+  const calculateTotalDailyEarnings = () => {
+    if (!user) return 0;
+    let total = 0;
+    levels.forEach(l => {
+      const amount = parseFloat((user as any)[`level${l.level}_amount` as keyof UserProfile] || 0);
+      total += (amount * l.rate) / 100;
+    });
+    return total;
+  }
+
+  const dynamicReturnRate = calculateAverageReturnRate();
+  const totalDailyEarnings = calculateTotalDailyEarnings();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
@@ -171,10 +199,9 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Investment Dashboard Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Investment Dashboard</h1>
-          <p className="text-red-400 text-lg font-semibold">BASIC</p>
+          <p className="text-red-400 text-lg font-semibold">{user?.unlockedLevel === 0 ? 'BASIC' : `LEVEL ${user?.unlockedLevel}`}</p>
         </div>
 
         {/* Investment Summary Cards */}
@@ -186,7 +213,7 @@ export default function Dashboard() {
 
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
             <p className="text-slate-400 text-sm mb-2">Daily Return Rate</p>
-            <p className="text-3xl font-bold text-green-400">{formatPercent(user?.dailyReturnRate)}%</p>
+            <p className="text-3xl font-bold text-green-400">{formatPercent(dynamicReturnRate)}%</p>
           </div>
 
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
@@ -196,7 +223,7 @@ export default function Dashboard() {
 
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
             <p className="text-slate-400 text-sm mb-2">Daily Earnings</p>
-            <p className="text-3xl font-bold text-green-400">${formatUSD(user?.dailyEarnings)}</p>
+            <p className="text-3xl font-bold text-green-400">${formatUSD(totalDailyEarnings)}</p>
           </div>
         </div>
 
@@ -209,12 +236,15 @@ export default function Dashboard() {
                 key={levelItem.level}
                 className={`border-2 rounded-lg p-6 relative ${
                   isLevelUnlocked(levelItem.level)
-                    ? 'bg-slate-800 border-yellow-500'
+                    ? 'bg-slate-800 border-yellow-500 shadow-lg shadow-yellow-500/10'
                     : 'bg-slate-900 border-slate-700 opacity-60'
                 }`}
               >
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-white">{levelItem.name}</h3>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">{levelItem.name}</h3>
+                    <p className="text-yellow-500/80 text-xs font-semibold mt-1">Daily Rate: {formatPercent(levelItem.rate)}%</p>
+                  </div>
                   <div className="text-3xl">
                     {isLevelUnlocked(levelItem.level) ? (
                       <span className="text-yellow-400">🔓</span>
@@ -226,12 +256,12 @@ export default function Dashboard() {
                 <div className="space-y-3">
                   <div>
                     <p className="text-slate-400 text-sm">USD Invested</p>
-                    <p className="text-2xl font-bold text-white">${formatUSD(user?.[`level${levelItem.level}_amount` as keyof UserProfile])}</p>
+                    <p className="text-2xl font-bold text-white">${formatUSD((user as any)[`level${levelItem.level}_amount` as keyof UserProfile])}</p>
                   </div>
                   <div>
                     <p className="text-slate-400 text-sm">Daily Earnings</p>
                     <p className="text-2xl font-bold text-green-400">
-                      ${formatUSD((parseFloat(user?.[`level${levelItem.level}_amount` as keyof UserProfile] as any) || 0) * (parseFloat(user?.dailyReturnRate as any) || 0) / 100)}
+                      ${formatUSD((parseFloat((user as any)[`level${levelItem.level}_amount` as keyof UserProfile] as any) || 0) * levelItem.rate / 100)}
                     </p>
                   </div>
                 </div>
@@ -250,21 +280,21 @@ export default function Dashboard() {
             <div className="bg-slate-700/50 rounded-lg p-4">
               <p className="text-slate-400 text-sm mb-2">7 Days</p>
               <p className="text-2xl font-bold text-green-400">
-                ${formatUSD(user ? (parseFloat(user.dailyEarnings as any) || 0) * 7 : 0)}
+                ${formatUSD(totalDailyEarnings * 7)}
               </p>
             </div>
 
             <div className="bg-slate-700/50 rounded-lg p-4">
               <p className="text-slate-400 text-sm mb-2">30 Days</p>
               <p className="text-2xl font-bold text-green-400">
-                ${formatUSD(user ? (parseFloat(user.dailyEarnings as any) || 0) * 30 : 0)}
+                ${formatUSD(totalDailyEarnings * 30)}
               </p>
             </div>
 
             <div className="bg-slate-700/50 rounded-lg p-4">
               <p className="text-slate-400 text-sm mb-2">1 Year</p>
               <p className="text-2xl font-bold text-green-400">
-                ${formatUSD(user ? (parseFloat(user.dailyEarnings as any) || 0) * 365 : 0)}
+                ${formatUSD(totalDailyEarnings * 365)}
               </p>
             </div>
           </div>
