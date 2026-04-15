@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
@@ -62,13 +62,6 @@ export default function AdminDashboard() {
   const [deposits, setDeposits] = useState<Deposit[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
   const [messages, setMessages] = useState<Message[]>([])
-  
-  useEffect(() => {
-    const chatContainer = document.getElementById('chat-container');
-    if (chatContainer) {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-  }, [messages, selectedUserId]);
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -90,44 +83,11 @@ export default function AdminDashboard() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    const initializeDashboard = async () => {
-      const token = localStorage.getItem('token')
-      if (!token) {
-        navigate('/login')
-        return
-      }
-
-      try {
-        const decoded = JSON.parse(atob(token))
-        setAdminRole(decoded.role)
-        setAdminChain(decoded.chain)
-
-        if (decoded.role !== 'admin' && decoded.role !== 'co-admin' && decoded.role !== 'master-admin') {
-          navigate('/dashboard')
-          return
-        }
-
-        setSettingsChain(decoded.chain)
-        
-        // Parallel fetch for better performance
-        await Promise.all([
-          fetchUsers(),
-          fetchBtcPrice(),
-          fetchSettings(decoded.chain),
-          fetchDeposits(),
-          fetchWithdrawals(),
-          fetchMessages()
-        ])
-      } catch (err) {
-        console.error('Initialization error:', err)
-        setError('Failed to initialize dashboard')
-      } finally {
-        setLoading(false)
-      }
+    const chatContainer = document.getElementById('chat-container');
+    if (chatContainer) {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
     }
-
-    initializeDashboard()
-  }, [navigate])
+  }, [messages, selectedUserId]);
 
   const fetchBtcPrice = async () => {
     try {
@@ -207,6 +167,45 @@ export default function AdminDashboard() {
       console.error('Fetch messages error:', err)
     }
   }
+
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        navigate('/login')
+        return
+      }
+
+      try {
+        const decoded = JSON.parse(atob(token))
+        setAdminRole(decoded.role)
+        setAdminChain(decoded.chain)
+
+        if (decoded.role !== 'admin' && decoded.role !== 'co-admin' && decoded.role !== 'master-admin') {
+          navigate('/dashboard')
+          return
+        }
+
+        setSettingsChain(decoded.chain)
+        
+        await Promise.all([
+          fetchUsers(),
+          fetchBtcPrice(),
+          fetchSettings(decoded.chain),
+          fetchDeposits(),
+          fetchWithdrawals(),
+          fetchMessages()
+        ])
+      } catch (err) {
+        console.error('Initialization error:', err)
+        setError('Failed to initialize dashboard')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    initializeDashboard()
+  }, [navigate])
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -351,7 +350,7 @@ export default function AdminDashboard() {
       fetchMessages()
       alert('Reply sent!')
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to send reply')
+      alert(err.response?.data?.message || 'Reply failed')
     }
   }
 
@@ -816,21 +815,18 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-400 mb-1">User Role</label>
+                <label className="block text-sm text-slate-400 mb-1">Role</label>
                 <select
                   value={editingUser.role}
                   onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
                   disabled={adminRole === 'co-admin'}
-                  className={`w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500 ${adminRole === 'co-admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500 disabled:opacity-50"
                 >
                   <option value="user">User</option>
                   <option value="co-admin">Co-Admin</option>
                   <option value="admin">Admin</option>
                   {adminRole === 'master-admin' && <option value="master-admin">Master Admin</option>}
                 </select>
-                <p className="text-[10px] text-slate-500 mt-1 italic">
-                  {adminRole === 'co-admin' ? '* Co-Admins cannot change roles' : '* Change user role'}
-                </p>
               </div>
               {adminRole === 'master-admin' && (
                 <div>
@@ -841,17 +837,25 @@ export default function AdminDashboard() {
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
                   >
                     {Array.from({ length: 10 }, (_, i) => i + 1).map(chain => (
-                      <option key={chain} value={chain}>
-                        Chain {chain}
-                      </option>
+                      <option key={chain} value={chain}>Chain {chain}</option>
                     ))}
                   </select>
-                  <p className="text-[10px] text-slate-500 mt-1 italic">* Master Admin can reassign users to different chains</p>
                 </div>
               )}
               <div className="flex gap-3 pt-4">
-                <button type="submit" className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-2 rounded-lg">Save Changes</button>
-                <button type="button" onClick={() => setEditingUser(null)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg">Cancel</button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-2 rounded-lg transition"
+                >
+                  Save Changes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg transition"
+                >
+                  Cancel
+                </button>
               </div>
             </form>
           </div>
