@@ -6,6 +6,7 @@ export default function Deposit() {
   const navigate = useNavigate()
   const [trc20Address, setTrc20Address] = useState<string>('')
   const [transactionId, setTransactionId] = useState<string>('')
+  const [selectedLevel, setSelectedLevel] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const [success, setSuccess] = useState<string>('')
@@ -24,7 +25,7 @@ export default function Deposit() {
   const fetchTrc20Address = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('/api/deposit/trc20', {
+      const response = await axios.get('/api/settings/trc20', {
         headers: { Authorization: `Bearer ${token}` },
       })
       setTrc20Address(response.data.trc20_address || '')
@@ -64,8 +65,9 @@ export default function Deposit() {
     setSubmitting(true)
     try {
       const token = localStorage.getItem('token')
-      await axios.post('/api/deposit/submit', {
+      await axios.post('/api/deposits/submit', {
         transactionId: transactionId,
+        level: selectedLevel,
       }, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -90,6 +92,15 @@ export default function Deposit() {
       </div>
     )
   }
+
+  const levels = [
+    { value: 0, label: 'BASIC' },
+    { value: 1, label: 'Level 1' },
+    { value: 2, label: 'Level 2' },
+    { value: 3, label: 'Level 3' },
+    { value: 4, label: 'Level 4' },
+    { value: 5, label: 'Level 5' },
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
@@ -151,6 +162,22 @@ export default function Deposit() {
           {/* Transaction ID Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
+              <label className="block text-slate-300 text-sm font-medium mb-3">Select Level</label>
+              <select
+                value={selectedLevel}
+                onChange={(e) => setSelectedLevel(parseInt(e.target.value))}
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+              >
+                {levels.map(level => (
+                  <option key={level.value} value={level.value}>
+                    {level.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-slate-500 text-xs mt-2">Choose which level you want to deposit for</p>
+            </div>
+
+            <div>
               <label className="block text-slate-300 text-sm font-medium mb-3">Transaction ID</label>
               <p className="text-slate-400 text-xs mb-2">Enter your transaction ID (5-30 characters, letters and numbers only)</p>
               <input
@@ -188,22 +215,26 @@ export default function Deposit() {
             <ol className="text-slate-400 text-sm space-y-2">
               <li className="flex gap-3">
                 <span className="text-yellow-500 font-bold">1.</span>
-                <span>Copy the TRC20 address above</span>
+                <span>Select the level you want to deposit for</span>
               </li>
               <li className="flex gap-3">
                 <span className="text-yellow-500 font-bold">2.</span>
-                <span>Send USDT (TRC20 network) from your wallet to this address</span>
+                <span>Copy the TRC20 address above</span>
               </li>
               <li className="flex gap-3">
                 <span className="text-yellow-500 font-bold">3.</span>
-                <span>Copy the transaction ID from your wallet</span>
+                <span>Send USDT (TRC20 network) from your wallet to this address</span>
               </li>
               <li className="flex gap-3">
                 <span className="text-yellow-500 font-bold">4.</span>
-                <span>Paste the transaction ID above (must be 5-30 characters, letters and numbers only)</span>
+                <span>Copy the transaction ID from your wallet</span>
               </li>
               <li className="flex gap-3">
                 <span className="text-yellow-500 font-bold">5.</span>
+                <span>Paste the transaction ID above (must be 5-30 characters, letters and numbers only)</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-yellow-500 font-bold">6.</span>
                 <span>Click Submit and wait for admin approval (usually within 24 hours)</span>
               </li>
             </ol>

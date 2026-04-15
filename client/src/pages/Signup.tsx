@@ -10,14 +10,16 @@ export default function Signup() {
     mobile: '',
     password: '',
     confirmPassword: '',
+    chain: 1,
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const value = e.target.name === 'chain' ? parseInt(e.target.value) : e.target.value
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [e.target.name]: value,
     })
   }
 
@@ -47,6 +49,7 @@ export default function Signup() {
         email: formData.email,
         mobile: formData.mobile,
         password: formData.password,
+        chain: formData.chain,
       })
       navigate('/login')
     } catch (err: any) {
@@ -111,6 +114,23 @@ export default function Signup() {
                 className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500"
                 placeholder="+1234567890"
               />
+            </div>
+
+            <div>
+              <label className="block text-slate-300 text-sm font-medium mb-2">Select Chain</label>
+              <select
+                name="chain"
+                value={formData.chain}
+                onChange={handleChange}
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
+              >
+                {Array.from({ length: 10 }, (_, i) => i + 1).map(chain => (
+                  <option key={chain} value={chain}>
+                    Chain {chain}
+                  </option>
+                ))}
+              </select>
+              <p className="text-slate-500 text-xs mt-1">Choose which chain you want to join</p>
             </div>
 
             <div>

@@ -12,6 +12,8 @@ interface UserProfile {
   dailyEarnings: number
   totalEarnings: number
   role: string
+  chain: number
+  unlockedLevel: number
 }
 
 export default function Dashboard() {
@@ -19,6 +21,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [btcPrice, setBtcPrice] = useState(0)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -43,7 +46,17 @@ export default function Dashboard() {
       }
     }
 
+    const fetchBtcPrice = async () => {
+      try {
+        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd')
+        setBtcPrice(response.data.bitcoin.usd)
+      } catch (err) {
+        console.error('Failed to fetch BTC price:', err)
+      }
+    }
+
     fetchProfile()
+    fetchBtcPrice()
   }, [navigate])
 
   const handleLogout = () => {
@@ -84,6 +97,19 @@ export default function Dashboard() {
     return isNaN(num) ? '0.00' : num.toFixed(2)
   }
 
+  const isLevelUnlocked = (level: number) => {
+    return user && user.unlockedLevel >= level
+  }
+
+  const levels = [
+    { name: 'BASIC', level: 0 },
+    { name: 'Level 1', level: 1 },
+    { name: 'Level 2', level: 2 },
+    { name: 'Level 3', level: 3 },
+    { name: 'Level 4', level: 4 },
+    { name: 'Level 5', level: 5 },
+  ]
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
       {/* Navbar */}
@@ -95,9 +121,11 @@ export default function Dashboard() {
                 <span className="text-black font-bold text-xs">₿</span>
               </div>
               <span className="text-xl font-bold text-white">BINANCE</span>
+              <span className="ml-4 text-slate-400 text-sm">Chain {user?.chain}</span>
+              <span className="ml-2 text-yellow-400 text-sm font-semibold">BTC: ${btcPrice.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-4">
-              {user?.role === 'admin' && (
+              {(user?.role === 'admin' || user?.role === 'co-admin' || user?.role === 'master-admin') && (
                 <button
                   onClick={() => navigate('/admin')}
                   className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-slate-900 rounded-lg font-bold text-sm"
@@ -137,7 +165,11 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-white mb-8">Investment Dashboard</h1>
+        {/* Investment Dashboard Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">Investment Dashboard</h1>
+          <p className="text-red-400 text-lg font-semibold">BASIC</p>
+        </div>
 
         {/* Investment Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -162,8 +194,53 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Multi-Level System */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-white mb-6">Investment Levels</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {levels.map((levelItem) => (
+              <div
+                key={levelItem.level}
+                className={`border-2 rounded-lg p-6 relative ${
+                  isLevelUnlocked(levelItem.level)
+                    ? 'bg-slate-800 border-yellow-500'
+                    : 'bg-slate-900 border-slate-700 opacity-60'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-xl font-bold text-white">{levelItem.name}</h3>
+                  <div className="text-3xl">
+                    {isLevelUnlocked(levelItem.level) ? (
+                      <span className="text-yellow-400">🔓</span>
+                    ) : (
+                      <span className="text-slate-500">🔒</span>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-slate-400 text-sm">USD Invested</p>
+                    <p className="text-2xl font-bold text-white">${formatUSD(user?.investmentAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-sm">BTC Allocated</p>
+                    <p className="text-2xl font-bold text-white">{formatBTC(user?.btcAllocated)} BTC</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-sm">Daily Earnings</p>
+                    <p className="text-2xl font-bold text-green-400">${formatUSD(user?.dailyEarnings)}</p>
+                  </div>
+                </div>
+                {!isLevelUnlocked(levelItem.level) && (
+                  <p className="text-slate-500 text-xs mt-4 italic">Deposit to unlock this level</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Earnings Projection */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 mb-8">
           <h2 className="text-xl font-bold text-white mb-6">Earnings Projection</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-slate-700/50 rounded-lg p-4">
@@ -190,7 +267,7 @@ export default function Dashboard() {
         </div>
 
         {/* Account Info */}
-        <div className="mt-8 bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
           <h2 className="text-xl font-bold text-white mb-4">Account Information</h2>
           <div className="space-y-3">
             <div className="flex justify-between">
@@ -200,6 +277,14 @@ export default function Dashboard() {
             <div className="flex justify-between">
               <span className="text-slate-400">Email:</span>
               <span className="text-white font-semibold">{user?.email || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Chain:</span>
+              <span className="text-white font-semibold">Chain {user?.chain}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Unlocked Level:</span>
+              <span className="text-yellow-400 font-semibold">{user?.unlockedLevel === 0 ? 'BASIC' : `Level ${user?.unlockedLevel}`}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Total Earnings:</span>
