@@ -58,7 +58,8 @@ export default function Deposit() {
     setError('')
     setSuccess('')
 
-    if (!amount || parseFloat(amount) <= 0) {
+    // Critical: Ensure amount is provided
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       setError('Please enter a valid deposit amount')
       return
     }
@@ -80,6 +81,7 @@ export default function Deposit() {
     setSubmitting(true)
     try {
       const token = localStorage.getItem('token')
+      // Ensure we send exactly what the backend expects: amount, transactionId, level
       await axios.post('/api/deposits/submit', {
         amount: parseFloat(amount),
         transactionId: transactionId,
@@ -87,11 +89,11 @@ export default function Deposit() {
       }, {
         headers: { Authorization: `Bearer ${token}` },
       })
+      
       setSuccess('Deposit submitted successfully! Awaiting admin approval.')
       setTransactionId('')
       setAmount('')
       
-      // Redirect back to dashboard after 2 seconds
       setTimeout(() => {
         navigate('/dashboard')
       }, 2000)
@@ -121,7 +123,6 @@ export default function Deposit() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
-      {/* Navbar */}
       <nav className="bg-slate-900 border-b border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -141,11 +142,10 @@ export default function Deposit() {
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
           <h1 className="text-3xl font-bold text-white mb-2">Make a Deposit</h1>
-          <p className="text-slate-400 mb-8">Send USDT to the address below and enter your transaction ID</p>
+          <p className="text-slate-400 mb-8">Send USDT and enter your transaction details below</p>
 
           {error && (
             <div className="bg-red-900/20 border border-red-600/30 rounded-lg p-4 mb-6">
@@ -176,8 +176,23 @@ export default function Deposit() {
             </button>
           </div>
 
-          {/* Deposit Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* AMOUNT FIELD - MOVED TO TOP FOR MAXIMUM VISIBILITY */}
+            <div className="bg-slate-900/50 p-4 rounded-lg border border-yellow-500/30">
+              <label className="block text-yellow-500 text-sm font-bold mb-3 uppercase tracking-wider">Deposit Amount (USDT)</label>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+                required
+                className="w-full bg-slate-900 border-2 border-slate-600 rounded-lg px-4 py-4 text-white text-xl placeholder-slate-600 focus:outline-none focus:border-yellow-500"
+              />
+              <p className="text-slate-500 text-xs mt-2">Enter the exact amount of USDT you sent to the address above.</p>
+            </div>
+
             <div>
               <label className="block text-slate-300 text-sm font-medium mb-3">Select Level</label>
               <select
@@ -191,91 +206,46 @@ export default function Deposit() {
                   </option>
                 ))}
               </select>
-              <p className="text-slate-500 text-xs mt-2">Choose which level you want to deposit for</p>
-            </div>
-
-            <div>
-              <label className="block text-slate-300 text-sm font-medium mb-3">Deposit Amount (USDT)</label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Enter amount (e.g. 100)"
-                step="0.01"
-                min="0"
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500"
-              />
-              <p className="text-slate-500 text-xs mt-2">Enter the amount of USDT you have sent</p>
             </div>
 
             <div>
               <label className="block text-slate-300 text-sm font-medium mb-3">Transaction ID</label>
-              <p className="text-slate-400 text-xs mb-2">Enter your transaction ID (5-30 characters, letters and numbers only)</p>
               <input
                 type="text"
                 value={transactionId}
                 onChange={(e) => setTransactionId(e.target.value)}
-                placeholder="Enter your transaction ID"
+                placeholder="Enter Transaction ID"
                 maxLength={30}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500 font-mono"
+                required
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-yellow-500 font-mono"
               />
               <div className="flex justify-between items-center mt-2">
-                <p className="text-slate-500 text-xs">
-                  Characters: {transactionId.length}/30
-                </p>
-                {transactionId.length >= 5 && transactionId.length <= 30 && /^[a-zA-Z0-9]+$/.test(transactionId) ? (
-                  <p className="text-green-400 text-xs font-semibold">✓ Valid format</p>
-                ) : transactionId.length > 0 ? (
-                  <p className="text-red-400 text-xs font-semibold">✗ Invalid format</p>
-                ) : null}
+                <p className="text-slate-500 text-xs">Characters: {transactionId.length}/30</p>
+                {transactionId.length > 0 && (
+                  <p className={isValidTransactionId(transactionId) ? "text-green-400 text-xs" : "text-red-400 text-xs"}>
+                    {isValidTransactionId(transactionId) ? "✓ Valid format" : "✗ Invalid format"}
+                  </p>
+                )}
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={submitting || !isValidTransactionId(transactionId) || !amount || parseFloat(amount) <= 0}
-              className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-yellow-700 text-slate-900 font-bold py-3 rounded-lg transition"
+              disabled={submitting || !amount || parseFloat(amount) <= 0 || !isValidTransactionId(transactionId)}
+              className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-slate-700 disabled:text-slate-500 text-slate-900 font-bold py-4 rounded-lg transition text-lg shadow-lg shadow-yellow-500/10"
             >
-              {submitting ? 'Submitting...' : 'Submit Deposit'}
+              {submitting ? 'Processing...' : 'Submit Deposit Request'}
             </button>
           </form>
 
-          {/* Instructions */}
           <div className="mt-8 pt-8 border-t border-slate-700">
-            <h3 className="text-white font-semibold mb-4">How it works:</h3>
-            <ol className="text-slate-400 text-sm space-y-2">
-              <li className="flex gap-3">
-                <span className="text-yellow-500 font-bold">1.</span>
-                <span>Select the level you want to deposit for</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-yellow-500 font-bold">2.</span>
-                <span>Copy the TRC20 address above</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-yellow-500 font-bold">3.</span>
-                <span>Send USDT (TRC20 network) from your wallet to this address</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-yellow-500 font-bold">4.</span>
-                <span>Copy the transaction ID from your wallet</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-yellow-500 font-bold">5.</span>
-                <span>Enter the amount and paste the transaction ID above</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-yellow-500 font-bold">6.</span>
-                <span>Click Submit and wait for admin approval (usually within 24 hours)</span>
-              </li>
+            <h3 className="text-white font-semibold mb-4">Steps to deposit:</h3>
+            <ol className="text-slate-400 text-sm space-y-3">
+              <li className="flex gap-3"><span className="text-yellow-500 font-bold">1.</span> <span>Copy the wallet address and send USDT (TRC20).</span></li>
+              <li className="flex gap-3"><span className="text-yellow-500 font-bold">2.</span> <span>Enter the **Amount** you sent in the box above.</span></li>
+              <li className="flex gap-3"><span className="text-yellow-500 font-bold">3.</span> <span>Enter the **Transaction ID** from your wallet.</span></li>
+              <li className="flex gap-3"><span className="text-yellow-500 font-bold">4.</span> <span>Click **Submit** and wait for admin approval.</span></li>
             </ol>
-          </div>
-
-          {/* Disclaimer */}
-          <div className="mt-8 bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-4">
-            <p className="text-yellow-400 text-xs">
-              <strong>Important:</strong> Make sure you're sending to the correct address. Double-check before confirming the transaction. We cannot recover funds sent to incorrect addresses.
-            </p>
           </div>
         </div>
       </div>
