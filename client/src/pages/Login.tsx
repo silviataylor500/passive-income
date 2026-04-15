@@ -8,11 +8,12 @@ export default function Login() {
     email: '',
     mobile: '',
     password: '',
+    chain: '1',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -23,7 +24,7 @@ export default function Login() {
     e.preventDefault()
     setError('')
 
-    if (!formData.email || !formData.mobile || !formData.password) {
+    if (!formData.email || !formData.mobile || !formData.password || !formData.chain) {
       setError('All fields are required')
       return
     }
@@ -34,6 +35,7 @@ export default function Login() {
         email: formData.email,
         mobile: formData.mobile,
         password: formData.password,
+        chain: parseInt(formData.chain),
       })
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('userId', response.data.userId)
@@ -100,6 +102,20 @@ export default function Login() {
                 className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500"
                 placeholder="••••••••"
               />
+            </div>
+
+            <div>
+              <label className="block text-slate-300 text-sm font-medium mb-2">Select Chain</label>
+              <select
+                name="chain"
+                value={formData.chain}
+                onChange={handleChange}
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
+              >
+                {Array.from({ length: 10 }, (_, i) => i + 1).map(chain => (
+                  <option key={chain} value={chain}>Chain {chain}</option>
+                ))}
+              </select>
             </div>
 
             <button
