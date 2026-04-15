@@ -115,6 +115,21 @@ async function initDatabase() {
       )
     `);
 
+    // Migrate settings table to ensure chain column exists
+    try {
+      await connection.execute(`ALTER TABLE settings ADD COLUMN chain INT DEFAULT 1`);
+      console.log('Chain column added to settings table');
+    } catch (e) {
+      // Column already exists
+    }
+
+    try {
+      await connection.execute(`ALTER TABLE settings ADD UNIQUE KEY unique_chain (chain)`);
+      console.log('Unique key added to settings table');
+    } catch (e) {
+      // Key already exists
+    }
+
     // Create deposits table for tracking user deposits with level support
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS deposits (
@@ -482,14 +497,11 @@ app.post('/api/admin/settings/trc20', authMiddleware, adminMiddleware, async (re
 
     const connection = await pool.getConnection();
 
-    // Check if settings exist for this chain
-    const [existing] = await connection.execute('SELECT id FROM settings WHERE chain = ?', [targetChain]);
-
-    if (existing.length > 0) {
-      await connection.execute('UPDATE settings SET trc20_address = ? WHERE chain = ?', [trc20_address, targetChain]);
-    } else {
-      await connection.execute('INSERT INTO settings (chain, trc20_address) VALUES (?, ?)', [targetChain, trc20_address]);
-    }
+    // Use ON DUPLICATE KEY UPDATE for a more robust update/insert
+    await connection.execute(
+      'INSERT INTO settings (chain, trc20_address) VALUES (?, ?) ON DUPLICATE KEY UPDATE trc20_address = ?',
+      [targetChain, trc20_address, trc20_address]
+    );
 
     connection.release();
     res.json({ message: 'TRC20 address updated successfully' });
