@@ -68,6 +68,7 @@ export default function AdminDashboard() {
   const [btcPrice, setBtcPrice] = useState<number>(0)
   const [trc20Address, setTrc20Address] = useState<string>('')
   const [newTrc20Address, setNewTrc20Address] = useState<string>('')
+  const [settingsChain, setSettingsChain] = useState<number>(1)
   const [activeTab, setActiveTab] = useState<'users' | 'deposits' | 'withdrawals' | 'chat' | 'settings'>('users')
   const [adminRole, setAdminRole] = useState<string>('admin')
   const [adminChain, setAdminChain] = useState<number>(1)
@@ -92,7 +93,8 @@ export default function AdminDashboard() {
 
     fetchUsers()
     fetchBtcPrice()
-    fetchTrc20Address()
+    setSettingsChain(decoded.chain)
+    fetchTrc20Address(decoded.chain)
     fetchDeposits()
     fetchWithdrawals()
     fetchMessages()
@@ -122,11 +124,12 @@ export default function AdminDashboard() {
     }
   }
 
-  const fetchTrc20Address = async () => {
+  const fetchTrc20Address = async (chain?: number) => {
     try {
       const token = localStorage.getItem('token')
       const response = await axios.get('/api/settings/trc20', {
         headers: { Authorization: `Bearer ${token}` },
+        params: chain ? { chain } : undefined
       })
       setTrc20Address(response.data.trc20_address || '')
     } catch (err: any) {
@@ -228,6 +231,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem('token')
       await axios.post('/api/admin/settings/trc20', {
         trc20_address: newTrc20Address,
+        chain: adminRole === 'master-admin' ? settingsChain : undefined
       }, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -659,8 +663,26 @@ export default function AdminDashboard() {
             <div className="bg-slate-800 border border-slate-700 rounded-lg p-8 max-w-2xl">
               <h2 className="text-2xl font-bold text-white mb-6">TRC20 Deposit Address</h2>
               <div className="space-y-4">
+                {adminRole === 'master-admin' && (
+                  <div>
+                    <label className="block text-slate-300 text-sm font-medium mb-2">Select Chain</label>
+                    <select
+                      value={settingsChain}
+                      onChange={(e) => {
+                        const chain = parseInt(e.target.value);
+                        setSettingsChain(chain);
+                        fetchTrc20Address(chain);
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                    >
+                      {Array.from({ length: 10 }, (_, i) => i + 1).map(chain => (
+                        <option key={chain} value={chain}>Chain {chain}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
-                  <label className="block text-slate-300 text-sm font-medium mb-2">Current Address</label>
+                  <label className="block text-slate-300 text-sm font-medium mb-2">Current Address (Chain {adminRole === 'master-admin' ? settingsChain : adminChain})</label>
                   <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
                     <p className="text-white font-mono break-all">{trc20Address || 'No address set'}</p>
                   </div>
@@ -728,14 +750,17 @@ export default function AdminDashboard() {
                 <select
                   value={editingUser.role}
                   onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
+                  disabled={adminRole === 'co-admin'}
+                  className={`w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500 ${adminRole === 'co-admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <option value="user">User</option>
                   <option value="co-admin">Co-Admin</option>
                   <option value="admin">Admin</option>
                   {adminRole === 'master-admin' && <option value="master-admin">Master Admin</option>}
                 </select>
-                <p className="text-[10px] text-slate-500 mt-1 italic">* Change user role</p>
+                <p className="text-[10px] text-slate-500 mt-1 italic">
+                  {adminRole === 'co-admin' ? '* Co-Admins cannot change roles' : '* Change user role'}
+                </p>
               </div>
               {adminRole === 'master-admin' && (
                 <div>
