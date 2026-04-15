@@ -708,7 +708,7 @@ app.post('/api/admin/deposits/:id/approve', authMiddleware, adminMiddleware, asy
     const [settings] = await connection.execute('SELECT * FROM settings WHERE chain = ?', [deposit.chain]);
     let newRate = 0.05; // Default basic rate
     if (settings.length > 0 && deposit.level > 0) {
-      newRate = settings[0][`level${deposit.level}_rate` as keyof typeof settings[0]] || 0.05;
+      newRate = settings[0][`level${deposit.level}_rate`] || 0.05;
     }
 
     // Update user's unlocked level and daily return rate
