@@ -58,27 +58,33 @@ async function initDatabase() {
     console.log('Successfully connected to the database.');
     
     // Create users table with chain and level support
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(36) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        mobile VARCHAR(20) NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        investmentAmount DECIMAL(10, 2) DEFAULT 0,
-        dailyReturnRate DECIMAL(5, 2) DEFAULT 0.05,
-        btcAllocated DECIMAL(16, 8) DEFAULT 0,
-        dailyEarnings DECIMAL(10, 2) DEFAULT 0,
-        totalEarnings DECIMAL(10, 2) DEFAULT 0,
-        role ENUM('user', 'admin', 'co-admin', 'master-admin') DEFAULT 'user',
-        chain INT DEFAULT 1,
-        unlockedLevel INT DEFAULT 0,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY unique_user_per_chain (email, chain),
-        UNIQUE KEY unique_mobile_per_chain (mobile, chain)
-      )
-    `);
+      await connection.execute(`
+        CREATE TABLE IF NOT EXISTS users (
+          id VARCHAR(36) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) NOT NULL,
+          mobile VARCHAR(20) NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          investmentAmount DECIMAL(10, 2) DEFAULT 0,
+          dailyReturnRate DECIMAL(5, 2) DEFAULT 0.05,
+          btcAllocated DECIMAL(16, 8) DEFAULT 0,
+          dailyEarnings DECIMAL(10, 2) DEFAULT 0,
+          totalEarnings DECIMAL(10, 2) DEFAULT 0,
+          level0_amount DECIMAL(10, 2) DEFAULT 0,
+          level1_amount DECIMAL(10, 2) DEFAULT 0,
+          level2_amount DECIMAL(10, 2) DEFAULT 0,
+          level3_amount DECIMAL(10, 2) DEFAULT 0,
+          level4_amount DECIMAL(10, 2) DEFAULT 0,
+          level5_amount DECIMAL(10, 2) DEFAULT 0,
+          role ENUM('user', 'admin', 'co-admin', 'master-admin') DEFAULT 'user',
+          chain INT DEFAULT 1,
+          unlockedLevel INT DEFAULT 0,
+          createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_user_per_chain (email, chain),
+          UNIQUE KEY unique_mobile_per_chain (mobile, chain)
+        )
+      `);
 
     // Migrate existing role column to support master-admin if it doesn't already
     try {
@@ -123,6 +129,14 @@ async function initDatabase() {
       console.log('UnlockedLevel column added to users table');
     } catch (e) {
       console.log('UnlockedLevel column already exists');
+    }
+
+    // Add level amount columns if they don't exist
+    for (let i = 0; i <= 5; i++) {
+      try {
+        await connection.execute(`ALTER TABLE users ADD COLUMN level${i}_amount DECIMAL(10, 2) DEFAULT 0`);
+        console.log(`level${i}_amount column added to users table`);
+      } catch (e) {}
     }
 
     // Create settings table for storing TRC20 address and level rates per chain
@@ -173,6 +187,7 @@ async function initDatabase() {
         id VARCHAR(36) PRIMARY KEY,
         userId VARCHAR(36) NOT NULL,
         chain INT DEFAULT 1,
+        amount DECIMAL(10, 2) DEFAULT 0,
         transactionId VARCHAR(255) NOT NULL,
         level INT DEFAULT 0,
         status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
@@ -197,6 +212,11 @@ async function initDatabase() {
     } catch (e) {
       console.log('Chain column already exists in deposits table');
     }
+
+    try {
+      await connection.execute(`ALTER TABLE deposits ADD COLUMN amount DECIMAL(10, 2) DEFAULT 0`);
+      console.log('Amount column added to deposits table');
+    } catch (e) {}
 
     // Create withdrawals table for tracking user withdrawals
     await connection.execute(`
@@ -631,10 +651,10 @@ app.post('/api/admin/settings/trc20', authMiddleware, adminMiddleware, async (re
 // User: Submit deposit with level
 app.post('/api/deposits/submit', authMiddleware, async (req, res) => {
   try {
-    const { transactionId, level } = req.body;
+    const { transactionId, level, amount } = req.body;
 
-    if (!transactionId || level === undefined) {
-      return res.status(400).json({ message: 'Transaction ID and level are required' });
+    if (!transactionId || level === undefined || !amount) {
+      return res.status(400).json({ message: 'Amount, Transaction ID and level are required' });
     }
 
     if (transactionId.length < 5 || transactionId.length > 30 || !/^[a-zA-Z0-9]+$/.test(transactionId)) {
@@ -649,8 +669,8 @@ app.post('/api/deposits/submit', authMiddleware, async (req, res) => {
 
     const depositId = crypto.randomUUID();
     await connection.execute(
-      'INSERT INTO deposits (id, userId, chain, transactionId, level, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [depositId, req.user.id, req.user.chain, transactionId, level, 'pending']
+      'INSERT INTO deposits (id, userId, chain, amount, transactionId, level, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [depositId, req.user.id, req.user.chain, amount, transactionId, level, 'pending']
     );
 
     connection.release();
@@ -666,7 +686,7 @@ app.get('/api/admin/deposits', authMiddleware, adminMiddleware, async (req, res)
   try {
     const connection = await pool.getConnection();
     let query = `
-      SELECT d.id, d.userId, u.name, u.email, d.transactionId, d.level, d.status, d.createdAt
+      SELECT d.id, d.userId, u.name, u.email, d.amount, d.transactionId, d.level, d.status, d.createdAt
       FROM deposits d
       JOIN users u ON d.userId = u.id
     `;
@@ -687,6 +707,18 @@ app.get('/api/admin/deposits', authMiddleware, adminMiddleware, async (req, res)
   }
 });
 
+// Helper to get BTC price
+async function getBtcPrice() {
+  try {
+    const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+    const data = await response.json();
+    return data.bitcoin.usd;
+  } catch (error) {
+    console.error('Failed to fetch BTC price:', error);
+    return 65000; // Fallback
+  }
+}
+
 // Admin: Approve deposit
 app.post('/api/admin/deposits/:id/approve', authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -700,6 +732,10 @@ app.post('/api/admin/deposits/:id/approve', authMiddleware, adminMiddleware, asy
     }
 
     const deposit = deposits[0];
+    if (deposit.status !== 'pending') {
+      connection.release();
+      return res.status(400).json({ message: 'Deposit is already processed' });
+    }
 
     // Update deposit status
     await connection.execute('UPDATE deposits SET status = ? WHERE id = ?', ['approved', req.params.id]);
@@ -711,10 +747,26 @@ app.post('/api/admin/deposits/:id/approve', authMiddleware, adminMiddleware, asy
       newRate = settings[0][`level${deposit.level}_rate`] || 0.05;
     }
 
-    // Update user's unlocked level and daily return rate
+    // Get current user data
+    const [users] = await connection.execute('SELECT * FROM users WHERE id = ?', [deposit.userId]);
+    const user = users[0];
+
+    const newInvestmentAmount = parseFloat(user.investmentAmount) + parseFloat(deposit.amount);
+    const btcPrice = await getBtcPrice();
+    const newBtcAllocated = newInvestmentAmount / btcPrice;
+    const levelCol = `level${deposit.level}_amount`;
+    const newLevelAmount = parseFloat(user[levelCol] || 0) + parseFloat(deposit.amount);
+
+    // Update user's unlocked level, daily return rate, investment amounts, and BTC allocation
     await connection.execute(
-      'UPDATE users SET unlockedLevel = ?, dailyReturnRate = ? WHERE id = ?',
-      [deposit.level, newRate, deposit.userId]
+      `UPDATE users SET 
+        unlockedLevel = GREATEST(unlockedLevel, ?), 
+        dailyReturnRate = GREATEST(dailyReturnRate, ?),
+        investmentAmount = ?,
+        btcAllocated = ?,
+        ${levelCol} = ?
+      WHERE id = ?`,
+      [deposit.level, newRate, newInvestmentAmount, newBtcAllocated, newLevelAmount, deposit.userId]
     );
 
     connection.release();
