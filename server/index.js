@@ -125,12 +125,17 @@ async function initDatabase() {
       console.log('UnlockedLevel column already exists');
     }
 
-    // Create settings table for storing TRC20 address per chain
+    // Create settings table for storing TRC20 address and level rates per chain
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS settings (
         id INT PRIMARY KEY AUTO_INCREMENT,
         chain INT DEFAULT 1,
         trc20_address VARCHAR(255),
+        level1_rate DECIMAL(5, 2) DEFAULT 0.05,
+        level2_rate DECIMAL(5, 2) DEFAULT 0.10,
+        level3_rate DECIMAL(5, 2) DEFAULT 0.15,
+        level4_rate DECIMAL(5, 2) DEFAULT 0.20,
+        level5_rate DECIMAL(5, 2) DEFAULT 0.25,
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY unique_chain (chain)
@@ -150,6 +155,16 @@ async function initDatabase() {
       console.log('Unique key added to settings table');
     } catch (e) {
       // Key already exists
+    }
+
+    // Add level rate columns to settings if they don't exist
+    const levelRates = ['level1_rate', 'level2_rate', 'level3_rate', 'level4_rate', 'level5_rate'];
+    const defaultRates = [0.05, 0.10, 0.15, 0.20, 0.25];
+    for (let i = 0; i < levelRates.length; i++) {
+      try {
+        await connection.execute(`ALTER TABLE settings ADD COLUMN ${levelRates[i]} DECIMAL(5, 2) DEFAULT ${defaultRates[i]}`);
+        console.log(`${levelRates[i]} column added to settings table`);
+      } catch (e) {}
     }
 
     // Create deposits table for tracking user deposits with level support
@@ -513,55 +528,103 @@ app.delete('/api/admin/users/:id', authMiddleware, adminMiddleware, async (req, 
   }
 });
 
-// Get TRC20 address for user's chain
-app.get('/api/settings/trc20', authMiddleware, async (req, res) => {
+// Get settings (TRC20 and level rates) for a chain
+app.get('/api/settings/all', authMiddleware, async (req, res) => {
   try {
     const { chain } = req.query;
     const connection = await pool.getConnection();
     
-    // Determine which chain to fetch
-    // Master Admin can specify a chain, otherwise use the user's session chain
     const targetChain = (req.user.role === 'master-admin' && chain) ? parseInt(chain) : req.user.chain;
     
-    const [settings] = await connection.execute('SELECT trc20_address FROM settings WHERE chain = ?', [targetChain]);
+    const [settings] = await connection.execute(
+      'SELECT trc20_address, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate FROM settings WHERE chain = ?',
+      [targetChain]
+    );
     connection.release();
 
     if (settings.length === 0) {
-      return res.json({ trc20_address: '' });
+      return res.json({
+        trc20_address: '',
+        level1_rate: 0.05,
+        level2_rate: 0.10,
+        level3_rate: 0.15,
+        level4_rate: 0.20,
+        level5_rate: 0.25
+      });
     }
 
-    res.json({ trc20_address: settings[0].trc20_address });
+    res.json(settings[0]);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch settings' });
+  }
+});
+
+// Legacy endpoint for backward compatibility
+app.get('/api/settings/trc20', authMiddleware, async (req, res) => {
+  try {
+    const { chain } = req.query;
+    const connection = await pool.getConnection();
+    const targetChain = (req.user.role === 'master-admin' && chain) ? parseInt(chain) : req.user.chain;
+    const [settings] = await connection.execute('SELECT trc20_address FROM settings WHERE chain = ?', [targetChain]);
+    connection.release();
+    res.json({ trc20_address: settings.length > 0 ? settings[0].trc20_address : '' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch TRC20 address' });
   }
 });
 
-// Admin: Set TRC20 address for their chain
+// Admin: Update settings (TRC20 and level rates) for their chain
+app.post('/api/admin/settings/update', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { trc20_address, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate, chain } = req.body;
+
+    const targetChain = (req.user.role === 'master-admin' && chain) ? chain : req.user.chain;
+    const connection = await pool.getConnection();
+
+    // Use ON DUPLICATE KEY UPDATE to handle both insert and update
+    await connection.execute(`
+      INSERT INTO settings (
+        chain, trc20_address, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        trc20_address = VALUES(trc20_address),
+        level1_rate = VALUES(level1_rate),
+        level2_rate = VALUES(level2_rate),
+        level3_rate = VALUES(level3_rate),
+        level4_rate = VALUES(level4_rate),
+        level5_rate = VALUES(level5_rate)
+    `, [
+      targetChain,
+      trc20_address || '',
+      level1_rate || 0.05,
+      level2_rate || 0.10,
+      level3_rate || 0.15,
+      level4_rate || 0.20,
+      level5_rate || 0.25
+    ]);
+
+    connection.release();
+    res.json({ message: 'Settings updated successfully' });
+  } catch (error) {
+    console.error('Settings update error:', error.message);
+    res.status(500).json({ message: `Failed to update settings: ${error.message}` });
+  }
+});
+
+// Legacy endpoint for backward compatibility
 app.post('/api/admin/settings/trc20', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { trc20_address, chain } = req.body;
-
-    if (!trc20_address) {
-      return res.status(400).json({ message: 'TRC20 address is required' });
-    }
-
-    // Determine which chain to update
-    // Master Admin can specify a chain, otherwise use the admin's own chain
     const targetChain = (req.user.role === 'master-admin' && chain) ? chain : req.user.chain;
-
     const connection = await pool.getConnection();
-
-    // Use ON DUPLICATE KEY UPDATE for a more robust update/insert
     await connection.execute(
       'INSERT INTO settings (chain, trc20_address) VALUES (?, ?) ON DUPLICATE KEY UPDATE trc20_address = ?',
       [targetChain, trc20_address, trc20_address]
     );
-
     connection.release();
     res.json({ message: 'TRC20 address updated successfully' });
   } catch (error) {
-    console.error('TRC20 update error:', error.message);
-    res.status(500).json({ message: `Failed to update TRC20 address: ${error.message}` });
+    res.status(500).json({ message: 'Failed to update TRC20 address' });
   }
 });
 
@@ -641,10 +704,17 @@ app.post('/api/admin/deposits/:id/approve', authMiddleware, adminMiddleware, asy
     // Update deposit status
     await connection.execute('UPDATE deposits SET status = ? WHERE id = ?', ['approved', req.params.id]);
 
-    // Update user's unlocked level
+    // Get the rate for this level from settings
+    const [settings] = await connection.execute('SELECT * FROM settings WHERE chain = ?', [deposit.chain]);
+    let newRate = 0.05; // Default basic rate
+    if (settings.length > 0 && deposit.level > 0) {
+      newRate = settings[0][`level${deposit.level}_rate` as keyof typeof settings[0]] || 0.05;
+    }
+
+    // Update user's unlocked level and daily return rate
     await connection.execute(
-      'UPDATE users SET unlockedLevel = ? WHERE id = ?',
-      [Math.max(deposit.level, deposit.level), deposit.userId]
+      'UPDATE users SET unlockedLevel = ?, dailyReturnRate = ? WHERE id = ?',
+      [deposit.level, newRate, deposit.userId]
     );
 
     connection.release();
