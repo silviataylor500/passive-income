@@ -75,7 +75,7 @@ export default function AdminDashboard() {
   const [btcPrice, setBtcPrice] = useState<number>(0)
   const [trc20Address, setTrc20Address] = useState<string>('')
   const [newTrc20Address, setNewTrc20Address] = useState<string>('')
-  const [levelRates, setLevelRates] = useState({
+  const [levelRates, setLevelRates] = useState<Record<string, number>>({
     level1: 0.05,
     level2: 0.10,
     level3: 0.15,
@@ -90,29 +90,43 @@ export default function AdminDashboard() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      navigate('/login')
-      return
+    const initializeDashboard = async () => {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        navigate('/login')
+        return
+      }
+
+      try {
+        const decoded = JSON.parse(atob(token))
+        setAdminRole(decoded.role)
+        setAdminChain(decoded.chain)
+
+        if (decoded.role !== 'admin' && decoded.role !== 'co-admin' && decoded.role !== 'master-admin') {
+          navigate('/dashboard')
+          return
+        }
+
+        setSettingsChain(decoded.chain)
+        
+        // Parallel fetch for better performance
+        await Promise.all([
+          fetchUsers(),
+          fetchBtcPrice(),
+          fetchSettings(decoded.chain),
+          fetchDeposits(),
+          fetchWithdrawals(),
+          fetchMessages()
+        ])
+      } catch (err) {
+        console.error('Initialization error:', err)
+        setError('Failed to initialize dashboard')
+      } finally {
+        setLoading(false)
+      }
     }
 
-    const decoded = JSON.parse(atob(token))
-    setAdminRole(decoded.role)
-    setAdminChain(decoded.chain)
-
-    if (decoded.role !== 'admin' && decoded.role !== 'co-admin' && decoded.role !== 'master-admin') {
-      navigate('/dashboard')
-      return
-    }
-
-    fetchUsers()
-    fetchBtcPrice()
-    setSettingsChain(decoded.chain)
-    fetchSettings(decoded.chain)
-    fetchDeposits()
-    fetchWithdrawals()
-    fetchMessages()
-    setLoading(false)
+    initializeDashboard()
   }, [navigate])
 
   const fetchBtcPrice = async () => {
@@ -740,7 +754,7 @@ export default function AdminDashboard() {
                           <input
                             type="number"
                             step="0.01"
-                            value={levelRates[`level${level}` as keyof typeof levelRates]}
+                            value={levelRates[`level${level}`] || 0}
                             onChange={(e) => setLevelRates({
                               ...levelRates,
                               [`level${level}`]: parseFloat(e.target.value) || 0
