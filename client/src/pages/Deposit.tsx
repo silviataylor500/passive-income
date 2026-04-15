@@ -7,6 +7,7 @@ export default function Deposit() {
   const [trc20Address, setTrc20Address] = useState<string>('')
   const [levelRates, setLevelRates] = useState<number[]>([0.05, 0.1, 0.15, 0.2, 0.25, 0.3])
   const [transactionId, setTransactionId] = useState<string>('')
+  const [amount, setAmount] = useState<string>('')
   const [selectedLevel, setSelectedLevel] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
@@ -57,6 +58,11 @@ export default function Deposit() {
     setError('')
     setSuccess('')
 
+    if (!amount || parseFloat(amount) <= 0) {
+      setError('Please enter a valid deposit amount')
+      return
+    }
+
     if (!transactionId.trim()) {
       setError('Please enter a transaction ID')
       return
@@ -75,6 +81,7 @@ export default function Deposit() {
     try {
       const token = localStorage.getItem('token')
       await axios.post('/api/deposits/submit', {
+        amount: parseFloat(amount),
         transactionId: transactionId,
         level: selectedLevel,
       }, {
@@ -82,6 +89,7 @@ export default function Deposit() {
       })
       setSuccess('Deposit submitted successfully! Awaiting admin approval.')
       setTransactionId('')
+      setAmount('')
       
       // Redirect back to dashboard after 2 seconds
       setTimeout(() => {
@@ -187,6 +195,19 @@ export default function Deposit() {
             </div>
 
             <div>
+              <label className="block text-slate-300 text-sm font-medium mb-3">Deposit Amount (USDT)</label>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Enter amount (e.g. 100)"
+                step="0.01"
+                min="0"
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500"
+              />
+            </div>
+
+            <div>
               <label className="block text-slate-300 text-sm font-medium mb-3">Transaction ID</label>
               <p className="text-slate-400 text-xs mb-2">Enter your transaction ID (5-30 characters, letters and numbers only)</p>
               <input
@@ -224,7 +245,7 @@ export default function Deposit() {
             <ol className="text-slate-400 text-sm space-y-2">
               <li className="flex gap-3">
                 <span className="text-yellow-500 font-bold">1.</span>
-                <span>Select the level you want to deposit for</span>
+                <span>Enter the amount you have sent and select your level</span>
               </li>
               <li className="flex gap-3">
                 <span className="text-yellow-500 font-bold">2.</span>

@@ -12,6 +12,12 @@ interface User {
   btcAllocated: number
   dailyEarnings: number
   totalEarnings: number
+  level0_amount: number
+  level1_amount: number
+  level2_amount: number
+  level3_amount: number
+  level4_amount: number
+  level5_amount: number
   role: string
   chain: number
   unlockedLevel: number
@@ -23,6 +29,7 @@ interface Deposit {
   userId: string
   name: string
   email: string
+  amount: number
   transactionId: string
   level: number
   status: 'pending' | 'approved' | 'rejected'
@@ -333,138 +340,109 @@ export default function AdminDashboard() {
   }
 
   const handleSendReply = async () => {
-    if (!replyMessage.trim() || !selectedUserId) {
-      alert('Please enter a message')
-      return
-    }
+    if (!replyMessage.trim() || !selectedUserId) return
 
     try {
       const token = localStorage.getItem('token')
       await axios.post('/api/admin/chat/reply', {
         userId: selectedUserId,
-        message: replyMessage,
+        message: replyMessage
       }, {
         headers: { Authorization: `Bearer ${token}` },
       })
       setReplyMessage('')
       fetchMessages()
-      alert('Reply sent!')
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Reply failed')
+      alert('Failed to send reply')
     }
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    navigate('/login')
+  const formatUSD = (amount: number) => {
+    return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
+  const getLevelName = (level: number) => {
+    return level === 0 ? 'BASIC' : `LEVEL ${level}`
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading Admin Dashboard...</div>
       </div>
     )
   }
 
-  const formatUSD = (val: any) => {
-    const num = parseFloat(val)
-    return isNaN(num) ? '0.00' : num.toFixed(2)
-  }
-
-  const getLevelName = (level: number) => {
-    return level === 0 ? 'BASIC' : `Level ${level}`
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
-      {/* Navbar */}
-      <nav className="bg-slate-900 border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                <span className="text-black font-bold text-xs">₿</span>
-              </div>
-              <span className="text-xl font-bold text-white">Admin Panel</span>
-              <span className="text-slate-400 text-sm">Role: {adminRole}</span>
-              {adminRole !== 'master-admin' && <span className="text-slate-400 text-sm">Chain: {adminChain}</span>}
-              <span className="text-yellow-400 text-sm font-semibold">BTC: ${btcPrice.toLocaleString()}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm"
-            >
-              Log Out
-            </button>
+    <div className="min-h-screen bg-slate-900 text-slate-300">
+      {/* Sidebar */}
+      <div className="fixed w-64 h-full bg-slate-800 border-r border-slate-700 p-6">
+        <div className="flex items-center gap-2 mb-10">
+          <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+            <span className="text-black font-bold text-xs">₿</span>
           </div>
+          <span className="text-xl font-bold text-white">ADMIN PANEL</span>
         </div>
-      </nav>
 
-      {/* Tabs */}
-      <div className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-4">
+        <nav className="space-y-2">
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
+              activeTab === 'users' ? 'bg-yellow-500 text-slate-900' : 'hover:bg-slate-700'
+            }`}
+          >
+            Users Management
+          </button>
+          <button
+            onClick={() => setActiveTab('deposits')}
+            className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
+              activeTab === 'deposits' ? 'bg-yellow-500 text-slate-900' : 'hover:bg-slate-700'
+            }`}
+          >
+            Deposits
+          </button>
+          <button
+            onClick={() => setActiveTab('withdrawals')}
+            className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
+              activeTab === 'withdrawals' ? 'bg-yellow-500 text-slate-900' : 'hover:bg-slate-700'
+            }`}
+          >
+            Withdrawals
+          </button>
+          {(adminRole === 'co-admin' || adminRole === 'master-admin') && (
             <button
-              onClick={() => setActiveTab('users')}
-              className={`px-4 py-3 font-semibold border-b-2 transition ${
-                activeTab === 'users'
-                  ? 'border-yellow-500 text-yellow-400'
-                  : 'border-transparent text-slate-400 hover:text-white'
+              onClick={() => setActiveTab('chat')}
+              className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
+                activeTab === 'chat' ? 'bg-yellow-500 text-slate-900' : 'hover:bg-slate-700'
               }`}
             >
-              Users
+              Support Chat
             </button>
+          )}
+          {(adminRole === 'admin' || adminRole === 'master-admin') && (
             <button
-              onClick={() => setActiveTab('deposits')}
-              className={`px-4 py-3 font-semibold border-b-2 transition ${
-                activeTab === 'deposits'
-                  ? 'border-yellow-500 text-yellow-400'
-                  : 'border-transparent text-slate-400 hover:text-white'
+              onClick={() => setActiveTab('settings')}
+              className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
+                activeTab === 'settings' ? 'bg-yellow-500 text-slate-900' : 'hover:bg-slate-700'
               }`}
             >
-              Deposits
+              System Settings
             </button>
-            <button
-              onClick={() => setActiveTab('withdrawals')}
-              className={`px-4 py-3 font-semibold border-b-2 transition ${
-                activeTab === 'withdrawals'
-                  ? 'border-yellow-500 text-yellow-400'
-                  : 'border-transparent text-slate-400 hover:text-white'
-              }`}
-            >
-              Withdrawals
-            </button>
-            {(adminRole === 'co-admin' || adminRole === 'master-admin') && (
-              <button
-                onClick={() => setActiveTab('chat')}
-                className={`px-4 py-3 font-semibold border-b-2 transition ${
-                  activeTab === 'chat'
-                    ? 'border-yellow-500 text-yellow-400'
-                    : 'border-transparent text-slate-400 hover:text-white'
-                }`}
-              >
-                Chat
-              </button>
-            )}
-            {(adminRole === 'admin' || adminRole === 'master-admin') && (
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`px-4 py-3 font-semibold border-b-2 transition ${
-                  activeTab === 'settings'
-                    ? 'border-yellow-500 text-yellow-400'
-                    : 'border-transparent text-slate-400 hover:text-white'
-                }`}
-              >
-                Settings
-              </button>
-            )}
-          </div>
+          )}
+        </nav>
+
+        <div className="absolute bottom-6 left-6 right-6">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold text-sm transition"
+          >
+            User Dashboard
+          </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="ml-64 p-8">
         {/* Users Tab */}
         {activeTab === 'users' && (
           <div>
@@ -475,35 +453,43 @@ export default function AdminDashboard() {
                   <tr>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Name</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Email</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Chain</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Level</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Investment</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Role</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Levels (1-5)</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">BTC Allocated</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map(user => (
                     <tr key={user.id} className="border-t border-slate-700 hover:bg-slate-700/50">
-                      <td className="px-6 py-4 text-white">{user.name}</td>
-                      <td className="px-6 py-4 text-slate-300">{user.email}</td>
-                      <td className="px-6 py-4 text-slate-300">{user.chain}</td>
-                      <td className="px-6 py-4 text-yellow-400 font-semibold">{getLevelName(user.unlockedLevel)}</td>
-                      <td className="px-6 py-4 text-green-400">${formatUSD(user.investmentAmount)}</td>
-                      <td className="px-6 py-4 text-slate-300">{user.role}</td>
+                      <td className="px-6 py-4 text-white font-medium">{user.name}</td>
+                      <td className="px-6 py-4 text-slate-400 text-sm">{user.email}</td>
+                      <td className="px-6 py-4 text-green-400 font-semibold">${formatUSD(user.investmentAmount)}</td>
+                      <td className="px-6 py-4 text-slate-300 text-xs">
+                        <div className="grid grid-cols-1 gap-0.5">
+                          <span>L1: ${formatUSD(user.level1_amount)}</span>
+                          <span>L2: ${formatUSD(user.level2_amount)}</span>
+                          <span>L3: ${formatUSD(user.level3_amount)}</span>
+                          <span>L4: ${formatUSD(user.level4_amount)}</span>
+                          <span>L5: ${formatUSD(user.level5_amount)}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-yellow-400 font-mono text-sm">{user.btcAllocated.toFixed(8)} BTC</td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => setEditingUser(user)}
-                          className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-slate-900 rounded text-sm font-semibold mr-2"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingUser(user)}
+                            className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-slate-900 rounded text-sm font-semibold"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -522,6 +508,7 @@ export default function AdminDashboard() {
                 <thead className="bg-slate-700">
                   <tr>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">User</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Amount</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Level</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Transaction ID</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Status</th>
@@ -533,6 +520,7 @@ export default function AdminDashboard() {
                   {deposits.map(deposit => (
                     <tr key={deposit.id} className="border-t border-slate-700 hover:bg-slate-700/50">
                       <td className="px-6 py-4 text-white">{deposit.name}</td>
+                      <td className="px-6 py-4 text-green-400 font-semibold">${formatUSD(deposit.amount)}</td>
                       <td className="px-6 py-4 text-yellow-400 font-semibold">{getLevelName(deposit.level)}</td>
                       <td className="px-6 py-4 text-slate-300 font-mono text-sm">{deposit.transactionId}</td>
                       <td className="px-6 py-4">
@@ -547,10 +535,10 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-slate-400 text-sm">{new Date(deposit.createdAt).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
                         {deposit.status === 'pending' && (
-                          <>
+                          <div className="flex gap-2">
                             <button
                               onClick={() => handleApproveDeposit(deposit.id)}
-                              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-semibold mr-2"
+                              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-semibold"
                             >
                               Approve
                             </button>
@@ -560,7 +548,7 @@ export default function AdminDashboard() {
                             >
                               Reject
                             </button>
-                          </>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -606,10 +594,10 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-slate-400 text-sm">{new Date(withdrawal.createdAt).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
                         {withdrawal.status === 'pending' && (
-                          <>
+                          <div className="flex gap-2">
                             <button
                               onClick={() => handleApproveWithdrawal(withdrawal.id)}
-                              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-semibold mr-2"
+                              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-semibold"
                             >
                               Approve
                             </button>
@@ -619,7 +607,7 @@ export default function AdminDashboard() {
                             >
                               Reject
                             </button>
-                          </>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -635,7 +623,6 @@ export default function AdminDashboard() {
           <div>
             <h1 className="text-3xl font-bold text-white mb-6">Customer Support Chat</h1>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Messages List */}
               <div className="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-lg p-6">
                 <div id="chat-container" className="space-y-4 max-h-96 overflow-y-auto pr-2">
                   {messages.filter(msg => !selectedUserId || msg.userId === selectedUserId).map(msg => (
@@ -666,7 +653,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Reply Section */}
               <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
                 <h3 className="text-white font-semibold mb-4">Send Reply</h3>
                 {selectedUserId ? (
@@ -698,7 +684,6 @@ export default function AdminDashboard() {
             <h1 className="text-3xl font-bold text-white mb-6">Settings</h1>
             <div className="bg-slate-800 border border-slate-700 rounded-lg p-8 max-w-2xl">
               <div className="space-y-8">
-                {/* Chain Selection */}
                 {adminRole === 'master-admin' && (
                   <div>
                     <h2 className="text-xl font-bold text-white mb-4">Chain Selection</h2>
@@ -719,9 +704,8 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* TRC20 Address */}
                 <div>
-                  <h2 className="text-xl font-bold text-white mb-4">TRC20 Deposit Address</h2>
+                  <h2 className="text-xl font-bold text-white mb-4">TRC20 Wallet Address</h2>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-slate-300 text-sm font-medium mb-2">Current Address (Chain {adminRole === 'master-admin' ? settingsChain : adminChain})</label>
@@ -742,7 +726,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Level Return Rates */}
                 {adminRole === 'master-admin' && (
                   <div>
                     <h2 className="text-xl font-bold text-white mb-4">Daily Return Rates (%)</h2>
