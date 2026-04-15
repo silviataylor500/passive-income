@@ -776,7 +776,7 @@ export default function AdminDashboard() {
                   onChange={(e) => handleInvestmentChange(parseFloat(e.target.value) || 0)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
                 />
-                <p className="text-[10px] text-slate-500 mt-1 italic">* BTC Allocated will auto-calculate based on live price (${btcPrice.toLocaleString()})</p>
+                <p className="text-[10px] text-slate-500 mt-1 italic">* BTC Allocated will auto-calculate based on live price (${btcPrice ? btcPrice.toLocaleString() : 'Loading...'})</p>
               </div>
               <div>
                 <label className="block text-sm text-slate-400 mb-1">Daily Return Rate (%)</label>
