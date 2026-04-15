@@ -62,8 +62,8 @@ async function initDatabase() {
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(36) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL UNIQUE,
-        mobile VARCHAR(20) NOT NULL UNIQUE,
+        email VARCHAR(255) NOT NULL,
+        mobile VARCHAR(20) NOT NULL,
         password VARCHAR(255) NOT NULL,
         investmentAmount DECIMAL(10, 2) DEFAULT 0,
         dailyReturnRate DECIMAL(5, 2) DEFAULT 0.05,
@@ -74,7 +74,9 @@ async function initDatabase() {
         chain INT DEFAULT 1,
         unlockedLevel INT DEFAULT 0,
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user_per_chain (email, chain),
+        UNIQUE KEY unique_mobile_per_chain (mobile, chain)
       )
     `);
 
@@ -95,6 +97,26 @@ async function initDatabase() {
     } catch (e) {
       console.log('Chain column already exists');
     }
+
+    // Remove old unique constraints if they exist to allow same email/mobile on different chains
+    try {
+      await connection.execute(`ALTER TABLE users DROP INDEX email`);
+      console.log('Old email unique index dropped');
+    } catch (e) {}
+    try {
+      await connection.execute(`ALTER TABLE users DROP INDEX mobile`);
+      console.log('Old mobile unique index dropped');
+    } catch (e) {}
+
+    // Add new composite unique constraints
+    try {
+      await connection.execute(`ALTER TABLE users ADD UNIQUE KEY unique_user_per_chain (email, chain)`);
+      console.log('Composite unique index (email, chain) added');
+    } catch (e) {}
+    try {
+      await connection.execute(`ALTER TABLE users ADD UNIQUE KEY unique_mobile_per_chain (mobile, chain)`);
+      console.log('Composite unique index (mobile, chain) added');
+    } catch (e) {}
 
     try {
       await connection.execute(`ALTER TABLE users ADD COLUMN unlockedLevel INT DEFAULT 0`);
@@ -289,10 +311,13 @@ app.post('/api/auth/signup', async (req, res) => {
 
     const connection = await pool.getConnection();
 
-    const [existingUsers] = await connection.execute('SELECT id FROM users WHERE email = ? OR mobile = ?', [email, mobile]);
+    const [existingUsers] = await connection.execute(
+      'SELECT id FROM users WHERE (email = ? OR mobile = ?) AND chain = ?',
+      [email, mobile, chain]
+    );
     if (existingUsers.length > 0) {
       connection.release();
-      return res.status(400).json({ message: 'Email or mobile already exists' });
+      return res.status(400).json({ message: 'Email or mobile already exists on this chain' });
     }
 
     const userId = crypto.randomUUID();
@@ -322,10 +347,24 @@ app.post('/api/auth/login', async (req, res) => {
 
     const connection = await pool.getConnection();
 
-    const [users] = await connection.execute('SELECT * FROM users WHERE email = ? AND mobile = ?', [
+    // First, try to find the user on the specific chain
+    let [users] = await connection.execute('SELECT * FROM users WHERE email = ? AND mobile = ? AND chain = ?', [
       email,
       mobile,
+      chain
     ]);
+
+    // If not found on that chain, check if they are a Master Admin on ANY chain
+    if (users.length === 0) {
+      const [masterAdmins] = await connection.execute('SELECT * FROM users WHERE email = ? AND mobile = ? AND role = ?', [
+        email,
+        mobile,
+        'master-admin'
+      ]);
+      if (masterAdmins.length > 0) {
+        users = masterAdmins;
+      }
+    }
 
     if (users.length === 0 || !verifyPassword(password, users[0].password)) {
       connection.release();
