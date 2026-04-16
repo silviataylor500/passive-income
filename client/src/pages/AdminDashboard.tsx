@@ -34,6 +34,7 @@ interface Deposit {
   level: number
   status: 'pending' | 'approved' | 'rejected'
   createdAt: string
+  chain?: number
 }
 
 interface Withdrawal {
@@ -45,6 +46,7 @@ interface Withdrawal {
   trc20_address: string
   status: 'pending' | 'approved' | 'rejected' | 'completed'
   createdAt: string
+  chain?: number
 }
 
 interface Message {
@@ -55,6 +57,7 @@ interface Message {
   message: string
   senderRole: 'user' | 'co-admin'
   createdAt: string
+  chain?: number
 }
 
 interface PriceData {
@@ -88,6 +91,16 @@ export default function AdminDashboard() {
   const [adminChain, setAdminChain] = useState<number>(1)
   const [replyMessage, setReplyMessage] = useState<string>('')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  
+  // Filter states
+  const [userChainFilter, setUserChainFilter] = useState<string>('all')
+  const [depositChainFilter, setDepositChainFilter] = useState<string>('all')
+  const [withdrawalChainFilter, setWithdrawalChainFilter] = useState<string>('all')
+  const [chatChainFilter, setChatChainFilter] = useState<string>('all')
+  
+  // Mass message state
+  const [massMessage, setMassMessage] = useState<string>('')
+  const [massMessageChain, setMassMessageChain] = useState<number>(1)
 
   // GLOBAL SAFETY WRAPPER FOR toLocaleString
   const safeFormatUSD = (amount: any) => {
@@ -365,7 +378,7 @@ export default function AdminDashboard() {
   }
 
   const handleSendReply = async () => {
-    if (!replyMessage.trim() || !selectedUserId) return
+    if (!selectedUserId || !replyMessage) return
 
     try {
       const token = localStorage.getItem('token')
@@ -378,63 +391,74 @@ export default function AdminDashboard() {
       setReplyMessage('')
       fetchMessages()
     } catch (err: any) {
-      alert('Failed to send reply')
+      alert(err.response?.data?.message || 'Failed to send reply')
     }
   }
 
-  const getLevelName = (level: any) => {
-    const val = parseInt(level) || 0
-    return val === 0 ? 'BASIC' : `LEVEL ${val}`
+  const handleSendMassMessage = async () => {
+    if (!massMessage) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.post('/api/admin/chat/mass-message', {
+        chain: massMessageChain,
+        message: massMessage
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setMassMessage('')
+      fetchMessages()
+      alert(response.data.message)
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to send mass message')
+    }
+  }
+
+  const getLevelName = (level: number) => {
+    if (level === 0) return 'BASIC'
+    return `LEVEL ${level}`
   }
 
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl font-bold">Loading Admin Dashboard...</div>
+        <div className="text-yellow-500 text-xl font-bold animate-pulse">Loading Admin Dashboard...</div>
       </div>
     )
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-red-500 text-xl font-bold">{error}</div>
-      </div>
-    )
-  }
+  // Filtered data
+  const filteredUsers = users.filter(u => userChainFilter === 'all' || u.chain === parseInt(userChainFilter))
+  const filteredDeposits = deposits.filter(d => depositChainFilter === 'all' || d.chain === parseInt(depositChainFilter))
+  const filteredWithdrawals = withdrawals.filter(w => withdrawalChainFilter === 'all' || w.chain === parseInt(withdrawalChainFilter))
+  const filteredMessages = messages.filter(m => chatChainFilter === 'all' || m.chain === parseInt(chatChainFilter))
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-300">
+    <div className="min-h-screen bg-slate-900">
       {/* Sidebar */}
-      <div className="fixed w-64 h-full bg-slate-800 border-r border-slate-700 p-6 z-10">
-        <div className="flex items-center gap-2 mb-10">
-          <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-            <span className="text-black font-bold text-xs">₿</span>
-          </div>
-          <span className="text-xl font-bold text-white uppercase tracking-tight">Admin Panel</span>
-        </div>
-
+      <div className="fixed left-0 top-0 h-full w-64 bg-slate-800 border-r border-slate-700 p-6">
+        <div className="text-2xl font-bold text-yellow-500 mb-10">Admin Panel</div>
         <nav className="space-y-2">
           <button
             onClick={() => setActiveTab('users')}
-            className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
-              activeTab === 'users' ? 'bg-yellow-500 text-slate-900' : 'hover:bg-slate-700'
+            className={`w-full text-left px-4 py-3 rounded-lg transition ${
+              activeTab === 'users' ? 'bg-yellow-500 text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-700'
             }`}
           >
             Users Management
           </button>
           <button
             onClick={() => setActiveTab('deposits')}
-            className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
-              activeTab === 'deposits' ? 'bg-yellow-500 text-slate-900' : 'hover:bg-slate-700'
+            className={`w-full text-left px-4 py-3 rounded-lg transition ${
+              activeTab === 'deposits' ? 'bg-yellow-500 text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-700'
             }`}
           >
             Deposits
           </button>
           <button
             onClick={() => setActiveTab('withdrawals')}
-            className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
-              activeTab === 'withdrawals' ? 'bg-yellow-500 text-slate-900' : 'hover:bg-slate-700'
+            className={`w-full text-left px-4 py-3 rounded-lg transition ${
+              activeTab === 'withdrawals' ? 'bg-yellow-500 text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-700'
             }`}
           >
             Withdrawals
@@ -442,61 +466,82 @@ export default function AdminDashboard() {
           {(adminRole === 'co-admin' || adminRole === 'master-admin') && (
             <button
               onClick={() => setActiveTab('chat')}
-              className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
-                activeTab === 'chat' ? 'bg-yellow-500 text-slate-900' : 'hover:bg-slate-700'
+              className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                activeTab === 'chat' ? 'bg-yellow-500 text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-700'
               }`}
             >
-              Support Chat
+              Customer Support
             </button>
           )}
           {(adminRole === 'admin' || adminRole === 'master-admin') && (
             <button
               onClick={() => setActiveTab('settings')}
-              className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${
-                activeTab === 'settings' ? 'bg-yellow-500 text-slate-900' : 'hover:bg-slate-700'
+              className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                activeTab === 'settings' ? 'bg-yellow-500 text-slate-900 font-bold' : 'text-slate-400 hover:bg-slate-700'
               }`}
             >
-              System Settings
+              Settings
             </button>
           )}
-        </nav>
-
-        <div className="absolute bottom-6 left-6 right-6">
           <button
             onClick={() => navigate('/dashboard')}
-            className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold text-sm transition"
+            className="w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-700 mt-10"
           >
-            User Dashboard
+            Back to Dashboard
           </button>
-        </div>
+        </nav>
       </div>
 
       {/* Main Content */}
-      <div className="ml-64 p-8">
+      <div className="ml-64 p-10">
+        {error && (
+          <div className="bg-red-900/30 border border-red-500 text-red-400 p-4 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
         {/* Users Tab */}
         {activeTab === 'users' && (
           <div>
-            <h1 className="text-3xl font-bold text-white mb-6">Users Management</h1>
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-3xl font-bold text-white">Users Management</h1>
+              <div className="flex items-center gap-4">
+                <label className="text-slate-400 text-sm font-semibold">Filter by Chain:</label>
+                <select
+                  value={userChainFilter}
+                  onChange={(e) => setUserChainFilter(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 text-white rounded px-3 py-1 focus:outline-none focus:border-yellow-500"
+                >
+                  <option value="all">All Chains</option>
+                  {[...Array(10)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>Chain {i + 1}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-700">
                   <tr>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Name</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Email</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Chain</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Investment</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Levels (1-5)</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">BTC Allocated</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Registered Date</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
-                  {users.map(user => (
+                  {filteredUsers.map(user => (
                     <tr key={user.id} className="hover:bg-slate-700/50">
-                      <td className="px-6 py-4 text-white font-medium">{user.name}</td>
-                      <td className="px-6 py-4 text-slate-400 text-sm">{user.email}</td>
+                      <td className="px-6 py-4 text-white">{user.name}</td>
+                      <td className="px-6 py-4 text-slate-400">{user.email}</td>
+                      <td className="px-6 py-4 text-yellow-500 font-bold">Chain {user.chain}</td>
                       <td className="px-6 py-4 text-green-400 font-semibold">${safeFormatUSD(user.investmentAmount)}</td>
-                      <td className="px-6 py-4 text-slate-300 text-xs">
-                        <div className="grid grid-cols-1 gap-0.5">
+                      <td className="px-6 py-4 text-slate-400 text-xs">
+                        <div className="grid grid-cols-2 gap-x-4">
                           <span>B: ${safeFormatUSD(user.level0_amount)}</span>
                           <span>L1: ${safeFormatUSD(user.level1_amount)}</span>
                           <span>L2: ${safeFormatUSD(user.level2_amount)}</span>
@@ -506,6 +551,7 @@ export default function AdminDashboard() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-yellow-400 font-mono text-sm">{safeFormatBTC(user.btcAllocated)} BTC</td>
+                      <td className="px-6 py-4 text-slate-400 text-sm">{new Date(user.createdAt).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
                           <button
@@ -533,12 +579,28 @@ export default function AdminDashboard() {
         {/* Deposits Tab */}
         {activeTab === 'deposits' && (
           <div>
-            <h1 className="text-3xl font-bold text-white mb-6">Deposits Management</h1>
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-3xl font-bold text-white">Deposits Management</h1>
+              <div className="flex items-center gap-4">
+                <label className="text-slate-400 text-sm font-semibold">Filter by Chain:</label>
+                <select
+                  value={depositChainFilter}
+                  onChange={(e) => setDepositChainFilter(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 text-white rounded px-3 py-1 focus:outline-none focus:border-yellow-500"
+                >
+                  <option value="all">All Chains</option>
+                  {[...Array(10)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>Chain {i + 1}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-700">
                   <tr>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">User</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Chain</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Amount</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Level</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Transaction ID</th>
@@ -548,9 +610,10 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
-                  {deposits.map(deposit => (
+                  {filteredDeposits.map(deposit => (
                     <tr key={deposit.id} className="hover:bg-slate-700/50">
                       <td className="px-6 py-4 text-white">{deposit.name}</td>
+                      <td className="px-6 py-4 text-yellow-500 font-bold">Chain {deposit.chain}</td>
                       <td className="px-6 py-4 text-green-400 font-semibold">${safeFormatUSD(deposit.amount)}</td>
                       <td className="px-6 py-4 text-yellow-400 font-semibold">{getLevelName(deposit.level)}</td>
                       <td className="px-6 py-4 text-slate-300 font-mono text-sm">{deposit.transactionId}</td>
@@ -593,12 +656,28 @@ export default function AdminDashboard() {
         {/* Withdrawals Tab */}
         {activeTab === 'withdrawals' && (
           <div>
-            <h1 className="text-3xl font-bold text-white mb-6">Withdrawals Management</h1>
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-3xl font-bold text-white">Withdrawals Management</h1>
+              <div className="flex items-center gap-4">
+                <label className="text-slate-400 text-sm font-semibold">Filter by Chain:</label>
+                <select
+                  value={withdrawalChainFilter}
+                  onChange={(e) => setWithdrawalChainFilter(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 text-white rounded px-3 py-1 focus:outline-none focus:border-yellow-500"
+                >
+                  <option value="all">All Chains</option>
+                  {[...Array(10)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>Chain {i + 1}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-700">
                   <tr>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">User</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Chain</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Amount</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">TRC20 Address</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Status</th>
@@ -607,9 +686,10 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
-                  {withdrawals.map(withdrawal => (
+                  {filteredWithdrawals.map(withdrawal => (
                     <tr key={withdrawal.id} className="hover:bg-slate-700/50">
                       <td className="px-6 py-4 text-white">{withdrawal.name}</td>
+                      <td className="px-6 py-4 text-yellow-500 font-bold">Chain {withdrawal.chain}</td>
                       <td className="px-6 py-4 text-green-400 font-semibold">${safeFormatUSD(withdrawal.amount)}</td>
                       <td className="px-6 py-4 text-slate-300 font-mono text-sm break-all">{withdrawal.trc20_address}</td>
                       <td className="px-6 py-4">
@@ -652,11 +732,26 @@ export default function AdminDashboard() {
         {/* Chat Tab */}
         {(activeTab === 'chat' && (adminRole === 'co-admin' || adminRole === 'master-admin')) && (
           <div>
-            <h1 className="text-3xl font-bold text-white mb-6">Customer Support Chat</h1>
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-3xl font-bold text-white">Customer Support Chat</h1>
+              <div className="flex items-center gap-4">
+                <label className="text-slate-400 text-sm font-semibold">Filter by Chain:</label>
+                <select
+                  value={chatChainFilter}
+                  onChange={(e) => setChatChainFilter(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 text-white rounded px-3 py-1 focus:outline-none focus:border-yellow-500"
+                >
+                  <option value="all">All Chains</option>
+                  {[...Array(10)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>Chain {i + 1}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-lg p-6">
                 <div id="chat-container" className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                  {messages.filter(msg => !selectedUserId || msg.userId === selectedUserId).map(msg => (
+                  {filteredMessages.filter(msg => !selectedUserId || msg.userId === selectedUserId).map(msg => (
                     <div
                       key={msg.id}
                       onClick={() => setSelectedUserId(msg.userId)}
@@ -670,6 +765,7 @@ export default function AdminDashboard() {
                         <div>
                           <p className="text-white font-semibold">{msg.name}</p>
                           <p className="text-slate-400 text-sm">{msg.email}</p>
+                          <p className="text-yellow-500 text-xs font-bold">Chain {msg.chain}</p>
                         </div>
                         <span className={`text-xs font-semibold px-2 py-1 rounded ${
                           msg.senderRole === 'user' ? 'bg-blue-900/30 text-blue-400' : 'bg-green-900/30 text-green-400'
@@ -684,26 +780,58 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
-                <h3 className="text-white font-semibold mb-4">Send Reply</h3>
-                {selectedUserId ? (
+              <div className="space-y-6">
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+                  <h3 className="text-white font-semibold mb-4">Send Reply</h3>
+                  {selectedUserId ? (
+                    <div className="space-y-4">
+                      <textarea
+                        value={replyMessage}
+                        onChange={(e) => setReplyMessage(e.target.value)}
+                        placeholder="Type your reply..."
+                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500 resize-none h-32"
+                      />
+                      <button
+                        onClick={handleSendReply}
+                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-2 rounded-lg transition"
+                      >
+                        Send Reply
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 text-sm">Select a message to reply</p>
+                  )}
+                </div>
+
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+                  <h3 className="text-white font-semibold mb-4">Send Mass Message</h3>
                   <div className="space-y-4">
+                    <div>
+                      <label className="text-slate-400 text-xs block mb-1">Target Chain:</label>
+                      <select
+                        value={massMessageChain}
+                        onChange={(e) => setMassMessageChain(parseInt(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-yellow-500"
+                      >
+                        {[...Array(10)].map((_, i) => (
+                          <option key={i + 1} value={i + 1}>Chain {i + 1}</option>
+                        ))}
+                      </select>
+                    </div>
                     <textarea
-                      value={replyMessage}
-                      onChange={(e) => setReplyMessage(e.target.value)}
-                      placeholder="Type your reply..."
+                      value={massMessage}
+                      onChange={(e) => setMassMessage(e.target.value)}
+                      placeholder="Type mass message for all users in chain..."
                       className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500 resize-none h-32"
                     />
                     <button
-                      onClick={handleSendReply}
-                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-2 rounded-lg transition"
+                      onClick={handleSendMassMessage}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition"
                     >
-                      Send Reply
+                      Send Mass Message
                     </button>
                   </div>
-                ) : (
-                  <p className="text-slate-400 text-sm">Select a message to reply</p>
-                )}
+                </div>
               </div>
             </div>
           </div>
@@ -713,168 +841,153 @@ export default function AdminDashboard() {
         {(activeTab === 'settings' && (adminRole === 'admin' || adminRole === 'master-admin')) && (
           <div>
             <h1 className="text-3xl font-bold text-white mb-6">Settings</h1>
-            <div className="bg-slate-800 border border-slate-700 rounded-lg p-8 max-w-2xl">
-              <div className="space-y-8">
-                {adminRole === 'master-admin' && (
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-4">Chain Selection</h2>
-                    <label className="block text-slate-300 text-sm font-medium mb-2">Select Chain to Manage</label>
-                    <select
-                      value={settingsChain}
-                      onChange={(e) => {
-                        const chain = parseInt(e.target.value) || 1;
-                        setSettingsChain(chain);
-                        fetchSettings(chain);
-                      }}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
-                    >
-                      {Array.from({ length: 10 }, (_, i) => i + 1).map(chain => (
-                        <option key={chain} value={chain}>Chain {chain}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+            <div className="max-w-2xl bg-slate-800 border border-slate-700 rounded-lg p-8">
+              {adminRole === 'master-admin' && (
+                <div className="mb-8 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
+                  <label className="block text-slate-400 text-sm font-semibold mb-2">Select Chain to Manage Settings:</label>
+                  <select
+                    value={settingsChain}
+                    onChange={(e) => {
+                      const chain = parseInt(e.target.value)
+                      setSettingsChain(chain)
+                      fetchSettings(chain)
+                    }}
+                    className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-yellow-500"
+                  >
+                    {[...Array(10)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>Chain {i + 1}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
+              <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-bold text-white mb-4">TRC20 Wallet Address</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-slate-300 text-sm font-medium mb-2">Current Address (Chain {adminRole === 'master-admin' ? settingsChain : adminChain})</label>
-                      <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-                        <p className="text-white font-mono break-all">{trc20Address || 'No address set'}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-slate-300 text-sm font-medium mb-2">New Address</label>
-                      <input
-                        type="text"
-                        value={newTrc20Address}
-                        onChange={(e) => setNewTrc20Address(e.target.value)}
-                        placeholder="Enter new TRC20 address"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500"
-                      />
-                    </div>
+                  <label className="block text-slate-400 text-sm font-semibold mb-2">Current TRC20 Address (Chain {adminRole === 'master-admin' ? settingsChain : adminChain})</label>
+                  <div className="bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-300 font-mono break-all">
+                    {trc20Address || 'Not set'}
                   </div>
                 </div>
 
-                {adminRole === 'master-admin' && (
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-4">Daily Return Rates (%)</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {[1, 2, 3, 4, 5].map(level => (
-                        <div key={level}>
-                          <label className="block text-slate-300 text-sm font-medium mb-2">Level {level} Rate (%)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={levelRates[`level${level}`] || 0}
-                            onChange={(e) => setLevelRates({
-                              ...levelRates,
-                              [`level${level}`]: parseFloat(e.target.value) || 0
-                            })}
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
-                          />
-                        </div>
-                      ))}
+                <div>
+                  <label className="block text-slate-400 text-sm font-semibold mb-2">Update TRC20 Address</label>
+                  <input
+                    type="text"
+                    value={newTrc20Address}
+                    onChange={(e) => setNewTrc20Address(e.target.value)}
+                    placeholder="Enter new TRC20 address"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(levelRates).map(([level, rate]) => (
+                    <div key={level}>
+                      <label className="block text-slate-400 text-sm font-semibold mb-2 capitalize">{level.replace('level', 'Level ')} Rate (%)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={rate * 100}
+                        onChange={(e) => setLevelRates({ ...levelRates, [level]: parseFloat(e.target.value) / 100 })}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                      />
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
 
                 <button
                   onClick={handleUpdateSettings}
                   className="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3 rounded-lg transition"
                 >
-                  Save All Settings
+                  Update Settings
                 </button>
               </div>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Edit Modal */}
-      {editingUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-white">Edit User: {editingUser.name}</h2>
-            <form onSubmit={handleUpdateUser} className="space-y-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Investment Amount ($)</label>
-                <input
-                  type="number"
-                  value={editingUser.investmentAmount}
-                  onChange={(e) => handleInvestmentChange(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
-                />
-                <p className="text-[10px] text-slate-500 mt-1 italic">* BTC Allocated will auto-calculate based on live price (${btcPrice ? safeFormatUSD(btcPrice) : 'Loading...'})</p>
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Daily Return Rate (%)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editingUser.dailyReturnRate}
-                  onChange={(e) => setEditingUser({ ...editingUser, dailyReturnRate: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">BTC Allocated</label>
-                <input
-                  type="number"
-                  step="0.00000001"
-                  value={editingUser.btcAllocated}
-                  onChange={(e) => setEditingUser({ ...editingUser, btcAllocated: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Role</label>
-                <select
-                  value={editingUser.role}
-                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
-                  disabled={adminRole === 'co-admin'}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500 disabled:opacity-50"
-                >
-                  <option value="user">User</option>
-                  <option value="co-admin">Co-Admin</option>
-                  <option value="admin">Admin</option>
-                  {adminRole === 'master-admin' && <option value="master-admin">Master Admin</option>}
-                </select>
-              </div>
-              {adminRole === 'master-admin' && (
+        {/* Edit User Modal */}
+        {editingUser && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-md w-full">
+              <h2 className="text-2xl font-bold text-white mb-6">Edit User: {editingUser.name}</h2>
+              <form onSubmit={handleUpdateUser} className="space-y-4">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Chain</label>
+                  <label className="block text-slate-400 text-sm font-semibold mb-2">Investment Amount ($)</label>
+                  <input
+                    type="number"
+                    value={editingUser.investmentAmount}
+                    onChange={(e) => handleInvestmentChange(parseFloat(e.target.value))}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-sm font-semibold mb-2">Daily Return Rate (%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingUser.dailyReturnRate}
+                    onChange={(e) => setEditingUser({ ...editingUser, dailyReturnRate: parseFloat(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-sm font-semibold mb-2">BTC Allocated</label>
+                  <input
+                    type="number"
+                    step="0.00000001"
+                    value={editingUser.btcAllocated}
+                    onChange={(e) => setEditingUser({ ...editingUser, btcAllocated: parseFloat(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-sm font-semibold mb-2">Role</label>
                   <select
-                    value={editingUser.chain}
-                    onChange={(e) => setEditingUser({ ...editingUser, chain: parseInt(e.target.value) || 1 })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500"
+                    value={editingUser.role}
+                    onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
                   >
-                    {Array.from({ length: 10 }, (_, i) => i + 1).map(chain => (
-                      <option key={chain} value={chain}>Chain {chain}</option>
-                    ))}
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="co-admin">Co-Admin</option>
+                    {adminRole === 'master-admin' && <option value="master-admin">Master Admin</option>}
                   </select>
                 </div>
-              )}
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-2 rounded-lg transition"
-                >
-                  Save Changes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingUser(null)}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+                {adminRole === 'master-admin' && (
+                  <div>
+                    <label className="block text-slate-400 text-sm font-semibold mb-2">Chain</label>
+                    <select
+                      value={editingUser.chain}
+                      onChange={(e) => setEditingUser({ ...editingUser, chain: parseInt(e.target.value) })}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                    >
+                      {[...Array(10)].map((_, i) => (
+                        <option key={i + 1} value={i + 1}>Chain {i + 1}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="flex gap-4 mt-8">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3 rounded-lg transition"
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
