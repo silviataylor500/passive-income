@@ -273,8 +273,11 @@ async function initDatabase() {
     // Add VIP trading columns to users table
     try {
       await connection.execute(`ALTER TABLE users ADD COLUMN tradingIncome DECIMAL(10, 2) DEFAULT 0`);
+      console.log('tradingIncome column added to users table');
+    } catch (e) {}
+    try {
       await connection.execute(`ALTER TABLE users ADD COLUMN vipUnlocked BOOLEAN DEFAULT FALSE`);
-      console.log('VIP trading columns added to users table');
+      console.log('vipUnlocked column added to users table');
     } catch (e) {}
 
     // Add VIP profit rate to settings table
@@ -462,7 +465,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/user/profile', authMiddleware, async (req, res) => {
   try {
     const connection = await pool.getConnection();
-    const [users] = await connection.execute('SELECT id, name, email, mobile, investmentAmount, dailyReturnRate, btcAllocated, dailyEarnings, totalEarnings, level0_amount, level1_amount, level2_amount, level3_amount, level4_amount, level5_amount, role, chain, unlockedLevel FROM users WHERE id = ?', [req.user.id]);
+    const [users] = await connection.execute('SELECT id, name, email, mobile, investmentAmount, dailyReturnRate, btcAllocated, dailyEarnings, totalEarnings, level0_amount, level1_amount, level2_amount, level3_amount, level4_amount, level5_amount, role, chain, unlockedLevel, tradingIncome, vipUnlocked FROM users WHERE id = ?', [req.user.id]);
     connection.release();
 
     if (users.length === 0) {
@@ -471,6 +474,7 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
 
     res.json(users[0]);
   } catch (error) {
+    console.error('Profile fetch error:', error);
     res.status(500).json({ message: 'Failed to fetch user profile' });
   }
 });
@@ -479,7 +483,7 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
 app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const connection = await pool.getConnection();
-    let query = 'SELECT id, name, email, mobile, investmentAmount, dailyReturnRate, btcAllocated, dailyEarnings, totalEarnings, level0_amount, level1_amount, level2_amount, level3_amount, level4_amount, level5_amount, role, chain, unlockedLevel, createdAt FROM users';
+    let query = 'SELECT id, name, email, mobile, investmentAmount, dailyReturnRate, btcAllocated, dailyEarnings, totalEarnings, level0_amount, level1_amount, level2_amount, level3_amount, level4_amount, level5_amount, role, chain, unlockedLevel, tradingIncome, vipUnlocked, createdAt FROM users';
     let params = [];
 
     // If not master-admin, only show users from their chain and hide master-admins
