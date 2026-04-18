@@ -20,6 +20,8 @@ interface UserProfile {
   role: string
   chain: number
   unlockedLevel: number
+  tradingIncome: number
+  vipUnlocked: boolean
 }
 
 interface Settings {
@@ -253,30 +255,16 @@ export default function Dashboard() {
               <span className="text-xl group-hover:scale-110 transition-transform">💵</span>
             </div>
             <p className="text-3xl font-black text-white">${formatUSD(user?.investmentAmount)}</p>
-            <div className="mt-2 flex items-center gap-1">
-              <span className="text-[10px] text-[#848e9c]">Across all active levels</span>
-            </div>
           </div>
 
-          <div className="bg-[#1e2329] border border-[#2b2f36] rounded-2xl p-6 hover:border-[#0ecb81]/30 transition-all group">
+          <div className="bg-[#1e2329] border border-[#2b2f36] rounded-2xl p-6 hover:border-orange-500/30 transition-all group">
             <div className="flex justify-between items-start mb-4">
-              <p className="text-[#848e9c] text-xs font-bold uppercase tracking-wider">Avg. Return Rate</p>
+              <p className="text-[#848e9c] text-xs font-bold uppercase tracking-wider">Trading Income</p>
               <span className="text-xl group-hover:scale-110 transition-transform">📈</span>
             </div>
-            <p className="text-3xl font-black text-[#0ecb81]">{formatPercent(dynamicReturnRate)}%</p>
+            <p className="text-3xl font-black text-orange-500">${formatUSD(user?.tradingIncome)}</p>
             <div className="mt-2 flex items-center gap-1">
-              <span className="text-[10px] text-[#848e9c]">Based on unlocked levels</span>
-            </div>
-          </div>
-
-          <div className="bg-[#1e2329] border border-[#2b2f36] rounded-2xl p-6 hover:border-yellow-500/30 transition-all group">
-            <div className="flex justify-between items-start mb-4">
-              <p className="text-[#848e9c] text-xs font-bold uppercase tracking-wider">BTC Allocated</p>
-              <span className="text-xl group-hover:scale-110 transition-transform">₿</span>
-            </div>
-            <p className="text-3xl font-black text-white">{formatBTC(user?.btcAllocated)}</p>
-            <div className="mt-2 flex items-center gap-1">
-              <span className="text-[10px] text-[#848e9c]">BTC Equivalent Value</span>
+              <span className="text-[10px] text-[#848e9c]">VIP Profit</span>
             </div>
           </div>
 
@@ -287,137 +275,212 @@ export default function Dashboard() {
             </div>
             <p className="text-3xl font-black text-[#0ecb81]">${formatUSD(totalDailyEarnings)}</p>
             <div className="mt-2 flex items-center gap-1">
-              <span className="text-[10px] text-[#848e9c]">Estimated next payout</span>
+              <span className="text-[10px] text-[#848e9c]">Across all active levels</span>
+            </div>
+          </div>
+
+          <div className="bg-[#1e2329] border border-[#2b2f36] rounded-2xl p-6 hover:border-blue-500/30 transition-all group">
+            <div className="flex justify-between items-start mb-4">
+              <p className="text-[#848e9c] text-xs font-bold uppercase tracking-wider">BTC Allocated</p>
+              <span className="text-xl group-hover:scale-110 transition-transform">🪙</span>
+            </div>
+            <p className="text-2xl font-black text-white">{formatBTC(user?.btcAllocated)} BTC</p>
+            <div className="mt-2 flex items-center gap-1">
+              <span className="text-[10px] text-[#848e9c]">Secured in Cold Storage</span>
             </div>
           </div>
         </div>
 
-        {/* Levels Section */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-white">Investment Tiers</h2>
-            <div className="flex items-center gap-2 text-xs font-bold text-[#848e9c]">
-              <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-              <span>UNLOCKED: {user?.unlockedLevel > 0 ? `LEVEL ${user?.unlockedLevel}` : 'NONE'}</span>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {levels.map((l) => (
-              <div
-                key={l.level}
-                className={`relative overflow-hidden rounded-2xl border-2 p-5 transition-all duration-300 ${
-                  isLevelUnlocked(l.level)
-                    ? `bg-gradient-to-br ${l.color} ${l.border} shadow-xl`
-                    : 'bg-[#181a20] border-[#2b2f36] opacity-40 grayscale'
-                }`}
-              >
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h3 className="text-lg font-black text-white">{l.name}</h3>
-                    <p className={`text-xs font-bold ${isLevelUnlocked(l.level) ? 'text-yellow-500' : 'text-[#848e9c]'}`}>
-                      {formatPercent(l.rate)}% Daily
-                    </p>
-                  </div>
-                  <div className="text-xl">
-                    {isLevelUnlocked(l.level) ? '🔓' : '🔒'}
-                  </div>
+        {/* Levels Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+          {/* VIP Trading Box */}
+          <div 
+            onClick={() => user?.vipUnlocked && navigate('/trading')}
+            className={`relative overflow-hidden rounded-2xl border-2 transition-all p-6 cursor-pointer group ${
+              user?.vipUnlocked 
+                ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/5 border-orange-500/50 hover:border-orange-500' 
+                : 'bg-[#1e2329] border-[#2b2f36] opacity-75 grayscale'
+            }`}
+          >
+            {!user?.vipUnlocked && (
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center">
+                <div className="w-12 h-12 bg-[#2b2f36] rounded-full flex items-center justify-center mb-2 border border-[#474d57]">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
                 </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-[10px] text-[#848e9c] uppercase font-bold tracking-widest mb-1">Invested</p>
-                    <p className="text-xl font-black text-white">${formatUSD((user as any)[`level${l.level}_amount` as keyof UserProfile])}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-[#848e9c] uppercase font-bold tracking-widest mb-1">Daily</p>
-                    <p className="text-xl font-black text-[#0ecb81]">
-                      ${formatUSD((parseFloat((user as any)[`level${l.level}_amount` as keyof UserProfile] as any) || 0) * l.rate / 100)}
-                    </p>
-                  </div>
-                </div>
-                
-                {!isLevelUnlocked(l.level) && (
-                  <div className="mt-4 pt-4 border-t border-[#2b2f36]">
-                    <button 
-                      onClick={() => navigate('/deposit')}
-                      className="w-full py-2 bg-[#2b2f36] hover:bg-[#363a45] text-white text-[10px] font-bold rounded-lg transition-colors"
-                    >
-                      UNLOCK NOW
-                    </button>
-                  </div>
-                )}
+                <span className="text-white font-black text-sm tracking-widest">LOCKED</span>
+                <span className="text-[10px] text-[#848e9c] mt-1">Contact Admin to Unlock</span>
               </div>
-            ))}
+            )}
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-white tracking-tight">VIP</h3>
+                <p className="text-orange-500 text-xs font-bold uppercase tracking-widest">Option Trading</p>
+              </div>
+              <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center">
+                <span className="text-orange-500 text-xl">💎</span>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-[#848e9c] text-[10px] font-bold uppercase">Potential Profit</p>
+                  <p className="text-xl font-black text-white">20% - 80%</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[#848e9c] text-[10px] font-bold uppercase">Duration</p>
+                  <p className="text-sm font-bold text-white">30 Seconds</p>
+                </div>
+              </div>
+              <button className={`w-full py-3 rounded-xl font-black text-sm transition-all ${
+                user?.vipUnlocked 
+                  ? 'bg-orange-500 hover:bg-orange-400 text-white shadow-lg shadow-orange-500/20' 
+                  : 'bg-[#2b2f36] text-[#474d57]'
+              }`}>
+                {user?.vipUnlocked ? 'START TRADING' : 'LOCKED'}
+              </button>
+            </div>
           </div>
+
+          {levels.map((l) => (
+            <div 
+              key={l.level}
+              className={`relative overflow-hidden rounded-2xl border-2 transition-all p-6 ${
+                isLevelUnlocked(l.level) 
+                  ? `bg-gradient-to-br ${l.color} ${l.border} hover:scale-[1.02]` 
+                  : 'bg-[#1e2329] border-[#2b2f36] opacity-75 grayscale'
+              }`}
+            >
+              {!isLevelUnlocked(l.level) && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center">
+                  <div className="w-10 h-10 bg-[#2b2f36] rounded-full flex items-center justify-center mb-2 border border-[#474d57]">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#848e9c]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <span className="text-white font-black text-xs tracking-widest">LOCKED</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-xl font-black text-white tracking-tight">{l.name}</h3>
+                  <p className="text-[#848e9c] text-[10px] font-bold uppercase tracking-widest">Automated Digging</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[#0ecb81] text-lg font-black">{formatPercent(l.rate)}%</p>
+                  <p className="text-[#848e9c] text-[10px] font-bold uppercase">Daily Rate</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-[10px] font-bold uppercase text-[#848e9c] mb-1">
+                    <span>Allocation</span>
+                    <span className="text-white">${formatUSD((user as any)[`level${l.level}_amount` as keyof UserProfile] || 0)}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-[#2b2f36] rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-yellow-500 transition-all duration-1000" 
+                      style={{ width: isLevelUnlocked(l.level) ? '100%' : '0%' }}
+                    ></div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between items-center pt-2">
+                  <div>
+                    <p className="text-[#848e9c] text-[10px] font-bold uppercase">Daily Profit</p>
+                    <p className="text-sm font-bold text-white">
+                      ${formatUSD((parseFloat((user as any)[`level${l.level}_amount` as keyof UserProfile] || 0) * l.rate) / 100)}
+                    </p>
+                  </div>
+                  <div className="px-3 py-1 bg-[#2b2f36] rounded-lg border border-[#474d57]">
+                    <span className="text-[10px] font-bold text-[#0ecb81]">ACTIVE</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Bottom Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Earnings Projection */}
-          <div className="lg:col-span-2 bg-[#1e2329] border border-[#2b2f36] rounded-3xl p-8">
-            <h2 className="text-xl font-black text-white mb-8 flex items-center gap-2">
-              <span>Earnings Projection</span>
-              <span className="text-xs font-normal text-[#848e9c] bg-[#0b0e11] px-2 py-1 rounded">Estimated</span>
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div className="p-6 bg-[#0b0e11] rounded-2xl border border-[#2b2f36] hover:border-blue-500/30 transition-colors">
-                <p className="text-[#848e9c] text-xs font-bold uppercase mb-3">Weekly</p>
+        {/* Market Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-[#1e2329] border border-[#2b2f36] rounded-2xl p-8">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-xl font-black text-white">Profit Projections</h3>
+              <div className="flex gap-2">
+                <span className="px-3 py-1 bg-yellow-500/10 text-yellow-500 text-[10px] font-bold rounded-lg border border-yellow-500/20">ESTIMATED</span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+              <div className="p-6 bg-[#0b0e11] rounded-2xl border border-[#2b2f36] hover:border-yellow-500/30 transition-all">
+                <p className="text-[#848e9c] text-xs font-bold uppercase mb-2">Weekly Profit</p>
                 <p className="text-2xl font-black text-white">${formatUSD(totalDailyEarnings * 7)}</p>
-                <p className="text-[10px] text-[#0ecb81] mt-1 font-bold">+700% vs Daily</p>
+                <p className="text-[10px] text-[#0ecb81] mt-1 font-bold">+700% Efficiency</p>
               </div>
-              <div className="p-6 bg-[#0b0e11] rounded-2xl border border-[#2b2f36] hover:border-purple-500/30 transition-colors">
-                <p className="text-[#848e9c] text-xs font-bold uppercase mb-3">Monthly</p>
+              <div className="p-6 bg-[#0b0e11] rounded-2xl border border-[#2b2f36] hover:border-yellow-500/30 transition-all">
+                <p className="text-[#848e9c] text-xs font-bold uppercase mb-2">Monthly Profit</p>
                 <p className="text-2xl font-black text-white">${formatUSD(totalDailyEarnings * 30)}</p>
-                <p className="text-[10px] text-[#0ecb81] mt-1 font-bold">+3000% vs Daily</p>
+                <p className="text-[10px] text-[#0ecb81] mt-1 font-bold">+3000% Efficiency</p>
               </div>
-              <div className="p-6 bg-[#0b0e11] rounded-2xl border border-[#2b2f36] hover:border-yellow-500/30 transition-colors">
-                <p className="text-[#848e9c] text-xs font-bold uppercase mb-3">Yearly</p>
+              <div className="p-6 bg-[#0b0e11] rounded-2xl border border-[#2b2f36] hover:border-yellow-500/30 transition-all">
+                <p className="text-[#848e9c] text-xs font-bold uppercase mb-2">Yearly Profit</p>
                 <p className="text-2xl font-black text-white">${formatUSD(totalDailyEarnings * 365)}</p>
-                <p className="text-[10px] text-[#0ecb81] mt-1 font-bold">+36500% vs Daily</p>
+                <p className="text-[10px] text-[#0ecb81] mt-1 font-bold">+36500% Efficiency</p>
               </div>
             </div>
           </div>
 
-          {/* Account Details */}
-          <div className="bg-[#1e2329] border border-[#2b2f36] rounded-3xl p-8">
-            <h2 className="text-xl font-black text-white mb-8">Account Details</h2>
-            <div className="space-y-5">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-[#848e9c] uppercase">Status</span>
-                <span className="px-2 py-1 bg-[#0ecb81]/10 text-[#0ecb81] text-[10px] font-black rounded uppercase tracking-widest">Verified</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-[#848e9c] uppercase">Total Profit</span>
-                <span className="text-sm font-black text-[#0ecb81]">${formatUSD(user?.totalEarnings)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-[#848e9c] uppercase">Current Chain</span>
-                <span className="text-sm font-black text-white">Chain {user?.chain}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-[#848e9c] uppercase">Max Tier</span>
-                <span className="text-sm font-black text-yellow-500">Level {user?.unlockedLevel || 0}</span>
-              </div>
-              <div className="pt-4">
-                <button 
-                  onClick={() => navigate('/chat')}
-                  className="w-full py-3 bg-[#2b2f36] hover:bg-[#363a45] text-white text-xs font-bold rounded-xl border border-[#474d57] transition-all"
-                >
-                  Contact Support
-                </button>
+          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl p-8 flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all"></div>
+            <div className="relative z-10">
+              <h3 className="text-2xl font-black text-black mb-2">Need Help?</h3>
+              <p className="text-black/70 text-sm font-medium mb-6">Our 24/7 support team is here to assist you with your investments.</p>
+              <button 
+                onClick={() => navigate('/chat')}
+                className="px-6 py-3 bg-black text-white rounded-xl font-bold text-sm hover:bg-black/80 transition-all"
+              >
+                Contact Support
+              </button>
+            </div>
+            <div className="relative z-10 mt-8 pt-8 border-t border-black/10">
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="w-8 h-8 rounded-full border-2 border-yellow-500 bg-[#2b2f36] flex items-center justify-center text-[10px] font-bold text-white">
+                      {String.fromCharCode(64 + i)}
+                    </div>
+                  ))}
+                </div>
+                <span className="text-xs font-bold text-black/60">Advisors Online</span>
               </div>
             </div>
           </div>
         </div>
       </div>
       
-      {/* Footer Disclaimer */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-[#2b2f36] mt-12">
-        <p className="text-[10px] text-[#474d57] leading-relaxed text-center max-w-3xl mx-auto">
-          Risk Warning: Cryptocurrency investment is subject to high market risk. Binance is not responsible for any of your trading losses. The "Passive Income" simulator is for educational purposes and demonstrates potential returns based on historical data. Your assets are protected by our Secure Asset Fund for Users (SAFU).
-        </p>
-      </div>
+      {/* Footer */}
+      <footer className="bg-[#181a20] border-t border-[#2b2f36] py-12 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 bg-yellow-500 rounded flex items-center justify-center">
+                <span className="text-black font-black text-[10px]">₿</span>
+              </div>
+              <span className="text-lg font-black tracking-tighter text-white">BINANCE <span className="text-orange-500">x</span> AMAZON</span>
+            </div>
+            <div className="flex gap-8 text-[#848e9c] text-xs font-bold uppercase tracking-widest">
+              <a href="#" className="hover:text-white transition-colors">Terms</a>
+              <a href="#" className="hover:text-white transition-colors">Privacy</a>
+              <a href="#" className="hover:text-white transition-colors">Security</a>
+              <a href="#" className="hover:text-white transition-colors">SAFU</a>
+            </div>
+            <p className="text-[#848e9c] text-[10px] font-medium">© 2026 Binance x Amazon. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

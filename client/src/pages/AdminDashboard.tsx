@@ -21,6 +21,8 @@ interface User {
   role: string
   chain: number
   unlockedLevel: number
+  tradingIncome: number
+  vipUnlocked: boolean
   createdAt: string
 }
 
@@ -101,6 +103,7 @@ export default function AdminDashboard() {
   // Mass message state
   const [massMessage, setMassMessage] = useState<string>('')
   const [massMessageChain, setMassMessageChain] = useState<number>(1)
+  const [vipProfitRate, setVipProfitRate] = useState<number>(20)
 
   // GLOBAL SAFETY WRAPPER FOR toLocaleString
   const safeFormatUSD = (amount: any) => {
@@ -241,6 +244,15 @@ export default function AdminDashboard() {
           fetchWithdrawals(),
           fetchMessages()
         ])
+        
+        // Fetch VIP rate from settings
+        const settingsRes = await axios.get('/api/settings/all', {
+          headers: { Authorization: `Bearer ${token}` },
+          params: decoded.chain ? { chain: decoded.chain } : undefined
+        })
+        if (settingsRes.data && settingsRes.data.vip_profit_rate) {
+          setVipProfitRate(settingsRes.data.vip_profit_rate)
+        }
       } catch (err) {
         console.error('Initialization error:', err)
         setError('Failed to initialize dashboard')
@@ -314,6 +326,15 @@ export default function AdminDashboard() {
       }, {
         headers: { Authorization: `Bearer ${token}` },
       })
+      
+      // Update VIP rate separately
+      await axios.post('/api/admin/settings/vip-rate', {
+        chain: adminRole === 'master-admin' ? settingsChain : adminChain,
+        profitRate: vipProfitRate
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
       if (newTrc20Address) {
         setTrc20Address(newTrc20Address)
         setNewTrc20Address('')
@@ -321,6 +342,21 @@ export default function AdminDashboard() {
       alert('Settings updated successfully!')
     } catch (err: any) {
       alert(err.response?.data?.message || 'Update failed')
+    }
+  }
+
+  const handleToggleVip = async (userId: string, currentStatus: boolean) => {
+    try {
+      const token = localStorage.getItem('token')
+      await axios.put(`/api/admin/users/${userId}/vip`, {
+        vipUnlocked: !currentStatus
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      fetchUsers()
+      alert('VIP status updated!')
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update VIP status')
     }
   }
 
@@ -530,6 +566,7 @@ export default function AdminDashboard() {
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Levels (1-5)</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">BTC Allocated</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Registered Date</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">VIP Status</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Actions</th>
                   </tr>
                 </thead>
@@ -539,7 +576,10 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-white">{user.name}</td>
                       <td className="px-6 py-4 text-slate-400">{user.email}</td>
                       <td className="px-6 py-4 text-yellow-500 font-bold">Chain {user.chain}</td>
-                      <td className="px-6 py-4 text-green-400 font-semibold">${safeFormatUSD(user.investmentAmount)}</td>
+                      <td className="px-6 py-4 text-green-400 font-semibold">
+                        <div>Inv: ${safeFormatUSD(user.investmentAmount)}</div>
+                        <div className="text-orange-500 text-[10px]">Trade: ${safeFormatUSD(user.tradingIncome)}</div>
+                      </td>
                       <td className="px-6 py-4 text-slate-400 text-xs">
                         <div className="grid grid-cols-2 gap-x-4">
                           <span>B: ${safeFormatUSD(user.level0_amount)}</span>
@@ -552,6 +592,16 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 text-yellow-400 font-mono text-sm">{safeFormatBTC(user.btcAllocated)} BTC</td>
                       <td className="px-6 py-4 text-slate-400 text-sm">{new Date(user.createdAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleToggleVip(user.id, user.vipUnlocked)}
+                          className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
+                            user.vipUnlocked ? 'bg-orange-500 text-white' : 'bg-slate-700 text-slate-400'
+                          }`}
+                        >
+                          {user.vipUnlocked ? 'VIP ACTIVE' : 'UNLOCK VIP'}
+                        </button>
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
                           <button
@@ -880,20 +930,32 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-                <div className="grid grid-cols-2 gap-4">
                   {Object.entries(levelRates).map(([level, rate]) => (
                     <div key={level}>
-                      <label className="block text-slate-400 text-sm font-semibold mb-2 capitalize">{level.replace('level', 'Level ')} Rate (%)</label>
+                      <label className="block text-slate-400 text-sm mb-1 uppercase">{level} Rate (%)</label>
                       <input
                         type="number"
                         step="0.01"
-                        value={rate * 100}
-                        onChange={(e) => setLevelRates({ ...levelRates, [level]: parseFloat(e.target.value) / 100 })}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                        value={rate}
+                        onChange={(e) => setLevelRates({ ...levelRates, [level]: parseFloat(e.target.value) })}
+                        className="w-full bg-slate-700 border border-slate-600 text-white rounded px-4 py-2 focus:outline-none focus:border-yellow-500"
                       />
                     </div>
                   ))}
-                </div>
+                  <div>
+                    <label className="block text-orange-500 text-sm mb-1 uppercase font-bold">VIP Profit Rate (%)</label>
+                    <select
+                      value={vipProfitRate}
+                      onChange={(e) => setVipProfitRate(parseInt(e.target.value))}
+                      className="w-full bg-slate-700 border border-orange-500/30 text-white rounded px-4 py-2 focus:outline-none focus:border-orange-500"
+                    >
+                      {[20, 30, 50, 75, 80].map(rate => (
+                        <option key={rate} value={rate}>{rate}%</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>         </div>
 
                 <button
                   onClick={handleUpdateSettings}
