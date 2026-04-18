@@ -8,6 +8,7 @@ import Deposit from './pages/Deposit'
 import Withdrawal from './pages/Withdrawal'
 import Chat from './pages/Chat'
 import Markets from './pages/Markets'
+import Trading from './pages/Trading'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/withdrawal" element={<Withdrawal />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/markets" element={<Markets />} />
+        <Route path="/trading" element={<Trading />} />
       </Routes>
     </Router>
   )
