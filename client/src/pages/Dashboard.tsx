@@ -296,56 +296,6 @@ export default function Dashboard() {
 
         {/* Levels Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-          {/* VIP Trading Box */}
-          <div 
-            onClick={() => user?.vipUnlocked && navigate('/trading')}
-            className={`relative overflow-hidden rounded-2xl border-2 transition-all p-6 cursor-pointer group ${
-              user?.vipUnlocked 
-                ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/5 border-orange-500/50 hover:border-orange-500' 
-                : 'bg-[#1e2329] border-[#2b2f36] opacity-75 grayscale'
-            }`}
-          >
-            {!user?.vipUnlocked && (
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center">
-                <div className="w-12 h-12 bg-[#2b2f36] rounded-full flex items-center justify-center mb-2 border border-[#474d57]">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
-                <span className="text-white font-black text-sm tracking-widest">LOCKED</span>
-                <span className="text-[10px] text-[#848e9c] mt-1">Contact Admin to Unlock</span>
-              </div>
-            )}
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h3 className="text-2xl font-black text-white tracking-tight">VIP</h3>
-                <p className="text-orange-500 text-xs font-bold uppercase tracking-widest">Option Trading</p>
-              </div>
-              <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center">
-                <span className="text-orange-500 text-xl">💎</span>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-end">
-                <div>
-                  <p className="text-[#848e9c] text-[10px] font-bold uppercase">Potential Profit</p>
-                  <p className="text-xl font-black text-white">20% - 80%</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[#848e9c] text-[10px] font-bold uppercase">Duration</p>
-                  <p className="text-sm font-bold text-white">30 Seconds</p>
-                </div>
-              </div>
-              <button className={`w-full py-3 rounded-xl font-black text-sm transition-all ${
-                user?.vipUnlocked 
-                  ? 'bg-orange-500 hover:bg-orange-400 text-white shadow-lg shadow-orange-500/20' 
-                  : 'bg-[#2b2f36] text-[#474d57]'
-              }`}>
-                {user?.vipUnlocked ? 'START TRADING' : 'LOCKED'}
-              </button>
-            </div>
-          </div>
-
           {levels.map((l) => (
             <div 
               key={l.level}
@@ -405,6 +355,56 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
+
+          {/* VIP Trading Box */}
+          <div 
+            onClick={() => user?.vipUnlocked && navigate('/trading')}
+            className={`relative overflow-hidden rounded-2xl border-2 transition-all p-6 cursor-pointer group ${
+              user?.vipUnlocked 
+                ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/5 border-orange-500/50 hover:border-orange-500' 
+                : 'bg-[#1e2329] border-[#2b2f36] opacity-75 grayscale'
+            }`}
+          >
+            {!user?.vipUnlocked && (
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center">
+                <div className="w-12 h-12 bg-[#2b2f36] rounded-full flex items-center justify-center mb-2 border border-[#474d57]">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <span className="text-white font-black text-sm tracking-widest">LOCKED</span>
+                <span className="text-[10px] text-[#848e9c] mt-1">Contact Admin to Unlock</span>
+              </div>
+            )}
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-white tracking-tight">VIP</h3>
+                <p className="text-orange-500 text-xs font-bold uppercase tracking-widest">Option Trading</p>
+              </div>
+              <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center">
+                <span className="text-orange-500 text-xl">💎</span>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-[#848e9c] text-[10px] font-bold uppercase">Potential Profit</p>
+                  <p className="text-xl font-black text-white">20% - 80%</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[#848e9c] text-[10px] font-bold uppercase">Duration</p>
+                  <p className="text-sm font-bold text-white">30 Seconds</p>
+                </div>
+              </div>
+              <button className={`w-full py-3 rounded-xl font-black text-sm transition-all ${
+                user?.vipUnlocked 
+                  ? 'bg-orange-500 hover:bg-orange-400 text-white shadow-lg shadow-orange-500/20' 
+                  : 'bg-[#2b2f36] text-[#474d57]'
+              }`}>
+                {user?.vipUnlocked ? 'START TRADING' : 'LOCKED'}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Market Insights */}

@@ -103,7 +103,6 @@ export default function AdminDashboard() {
   // Mass message state
   const [massMessage, setMassMessage] = useState<string>('')
   const [massMessageChain, setMassMessageChain] = useState<number>(1)
-  const [vipProfitRate, setVipProfitRate] = useState<number>(20)
 
   // GLOBAL SAFETY WRAPPER FOR toLocaleString
   const safeFormatUSD = (amount: any) => {
@@ -270,6 +269,7 @@ export default function AdminDashboard() {
 
     try {
       const token = localStorage.getItem('token')
+      // Update basic user info
       await axios.put(`/api/admin/users/${editingUser.id}`, {
         investmentAmount: editingUser.investmentAmount,
         dailyReturnRate: editingUser.dailyReturnRate,
@@ -279,6 +279,15 @@ export default function AdminDashboard() {
       }, {
         headers: { Authorization: `Bearer ${token}` },
       })
+
+      // Update VIP settings specifically
+      await axios.put(`/api/admin/users/${editingUser.id}/vip`, {
+        vipUnlocked: editingUser.vipUnlocked,
+        vipProfitRate: (editingUser as any).vipProfitRate
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
       setEditingUser(null)
       fetchUsers()
       alert('User updated successfully!')
@@ -943,18 +952,7 @@ export default function AdminDashboard() {
                       />
                     </div>
                   ))}
-                  <div>
-                    <label className="block text-orange-500 text-sm mb-1 uppercase font-bold">VIP Profit Rate (%)</label>
-                    <select
-                      value={vipProfitRate}
-                      onChange={(e) => setVipProfitRate(parseInt(e.target.value))}
-                      className="w-full bg-slate-700 border border-orange-500/30 text-white rounded px-4 py-2 focus:outline-none focus:border-orange-500"
-                    >
-                      {[20, 30, 50, 75, 80].map(rate => (
-                        <option key={rate} value={rate}>{rate}%</option>
-                      ))}
-                    </select>
-                  </div>
+
                 </div>
 
                 <button
@@ -1030,6 +1028,18 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                 )}
+                <div>
+                  <label className="block text-orange-500 text-sm font-semibold mb-2 uppercase">VIP Profit Rate (%)</label>
+                  <select
+                    value={(editingUser as any).vipProfitRate || 20}
+                    onChange={(e) => setEditingUser({ ...editingUser, vipProfitRate: parseInt(e.target.value) } as any)}
+                    className="w-full bg-slate-900 border border-orange-500/30 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500"
+                  >
+                    {[20, 30, 50, 75, 80].map(rate => (
+                      <option key={rate} value={rate}>{rate}%</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex gap-4 mt-8">
                   <button
                     type="submit"
