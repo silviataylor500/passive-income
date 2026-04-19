@@ -930,7 +930,7 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   {Object.entries(levelRates).map(([level, rate]) => (
                     <div key={level}>
                       <label className="block text-slate-400 text-sm mb-1 uppercase">{level} Rate (%)</label>
@@ -955,7 +955,7 @@ export default function AdminDashboard() {
                       ))}
                     </select>
                   </div>
-                </div>         </div>
+                </div>
 
                 <button
                   onClick={handleUpdateSettings}
