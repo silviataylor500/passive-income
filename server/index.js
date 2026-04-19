@@ -461,7 +461,11 @@ app.post('/api/auth/login', async (req, res) => {
     })).toString('base64');
 
     connection.release();
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, chain: sessionChain } });
+    res.json({ 
+      token, 
+      userId: user.id,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, chain: sessionChain } 
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: `Login failed: ${error.message}` });
@@ -485,12 +489,17 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
     connection.release();
 
     if (users.length === 0) {
+      console.log('User profile not found for ID:', req.user.id);
       return res.status(404).json({ message: 'User not found' });
     }
 
     res.json(users[0]);
   } catch (error) {
-    console.error('Profile fetch error:', error);
+    console.error('Profile fetch error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
     res.status(500).json({ message: `Failed to fetch user profile: ${error.message}` });
   }
 });
