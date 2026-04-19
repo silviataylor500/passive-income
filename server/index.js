@@ -1138,10 +1138,8 @@ app.post('/api/admin/settings/vip-rate', authMiddleware, adminMiddleware, async 
 });
 
 // Static files
-// Support both /app and root directory structures (e.g., Railway/Docker)
-const distPath = fs.existsSync(path.join(__dirname, '../dist/public'))
-  ? path.join(__dirname, '../dist/public')
-  : path.join(process.cwd(), 'dist/public');
+// Define the path to the frontend build
+const distPath = path.resolve(process.cwd(), 'dist/public');
 
 console.log('Serving static files from:', distPath);
 app.use(express.static(distPath));
