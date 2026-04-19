@@ -284,6 +284,12 @@ async function initDatabase() {
     } catch (e) {
       console.log('vipUnlocked column already exists or error:', e.message);
     }
+    try {
+      await connection.execute(`ALTER TABLE users ADD COLUMN vipProfitRate INT DEFAULT 20`);
+      console.log('vipProfitRate column added to users table');
+    } catch (e) {
+      console.log('vipProfitRate column already exists or error:', e.message);
+    }
 
     // Add VIP profit rate to settings table
     try {
@@ -483,7 +489,8 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
         dailyEarnings, totalEarnings, level0_amount, level1_amount, level2_amount, 
         level3_amount, level4_amount, level5_amount, role, chain, unlockedLevel,
         COALESCE(tradingIncome, 0) as tradingIncome,
-        COALESCE(vipUnlocked, 0) as vipUnlocked
+        COALESCE(vipUnlocked, 0) as vipUnlocked,
+        COALESCE(vipProfitRate, 20) as vipProfitRate
       FROM users WHERE id = ?
     `, [req.user.id]);
     connection.release();
@@ -1089,9 +1096,9 @@ app.post('/api/trading/execute', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'VIP Trading is locked for your account' });
     }
 
-    // Get profit rate from settings for user's chain
-    const [settingsRows] = await connection.execute('SELECT vip_profit_rate FROM settings WHERE chain = ?', [userRows[0].chain]);
-    const profitRate = settingsRows.length > 0 ? settingsRows[0].vip_profit_rate : 20;
+    // Get profit rate from user record
+    const [userRecord] = await connection.execute('SELECT vipProfitRate FROM users WHERE id = ?', [userId]);
+    const profitRate = userRecord.length > 0 ? userRecord[0].vipProfitRate : 20;
     
     const profit = (amount * profitRate) / 100;
     
@@ -1113,16 +1120,20 @@ app.post('/api/trading/execute', authMiddleware, async (req, res) => {
   }
 });
 
-// Admin: Update VIP status and profit rate
+// Admin: Update VIP status and individual profit rate
 app.put('/api/admin/users/:id/vip', authMiddleware, adminMiddleware, async (req, res) => {
-  const { vipUnlocked } = req.body;
+  const { vipUnlocked, vipProfitRate } = req.body;
   const userId = req.params.id;
 
   try {
     const connection = await pool.getConnection();
-    await connection.execute('UPDATE users SET vipUnlocked = ? WHERE id = ?', [vipUnlocked, userId]);
+    if (vipProfitRate !== undefined) {
+      await connection.execute('UPDATE users SET vipUnlocked = ?, vipProfitRate = ? WHERE id = ?', [vipUnlocked, vipProfitRate, userId]);
+    } else {
+      await connection.execute('UPDATE users SET vipUnlocked = ? WHERE id = ?', [vipUnlocked, userId]);
+    }
     connection.release();
-    res.json({ message: 'VIP status updated successfully' });
+    res.json({ message: 'VIP settings updated successfully' });
   } catch (error) {
     console.error('Update VIP status error:', error);
     res.status(500).json({ message: 'Failed to update VIP status' });
