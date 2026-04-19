@@ -11,6 +11,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
 } from 'chart.js'
 import Logo from '../components/Logo'
 
@@ -21,7 +22,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 )
 
 interface UserProfile {
@@ -61,7 +63,7 @@ export default function Dashboard() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [btcPrice, setBtcPrice] = useState(0)
+  const [btcPrice, setBtcPrice] = useState(75767)
   const isMounted = useRef(true)
 
   useEffect(() => {
@@ -95,14 +97,13 @@ export default function Dashboard() {
           if (isMounted.current) setBtcPrice(btcRes.data.bitcoin.usd)
         } catch (btcErr) {
           console.error('BTC Price fetch error:', btcErr)
-          if (isMounted.current) setBtcPrice(75000)
         }
 
         if (isMounted.current) setLoading(false)
       } catch (err: any) {
         console.error('Data fetch error:', err)
         if (isMounted.current) {
-          setError(err.response?.data?.message || 'Failed to fetch dashboard data. Please check your connection.')
+          setError(err.response?.data?.message || 'Failed to fetch dashboard data.')
           setLoading(false)
         }
       }
@@ -152,100 +153,87 @@ export default function Dashboard() {
     return isNaN(num) ? '0.00' : num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
-  const formatBTC = (val: any) => {
-    const num = parseFloat(val)
-    return isNaN(num) ? '0.00000000' : num.toFixed(8)
-  }
-
-  const safeFormatUSD = (val: any) => formatUSD(val);
-  const safeFormatBTC = (val: any) => formatBTC(val);
-
-  const formatPercent = (val: any) => {
-    const num = parseFloat(val)
-    return isNaN(num) ? '0.000' : num.toFixed(3)
-  }
-
   const isLevelUnlocked = (level: number) => {
     return user && user.unlockedLevel >= level
   }
 
   const levels = [
-    { name: 'Level 1', level: 1, rate: settings?.level1_rate || 0.05, icon: '💚', color: 'from-green-500/20 to-green-600/5', border: 'border-green-500/30' },
-    { name: 'Level 2', level: 2, rate: settings?.level2_rate || 0.10, icon: '🤍', color: 'from-slate-500/20 to-slate-600/5', border: 'border-slate-500/30' },
-    { name: 'Level 3', level: 3, rate: settings?.level3_rate || 0.15, icon: '👑', color: 'from-yellow-500/20 to-yellow-600/5', border: 'border-yellow-500/30' },
-    { name: 'Level 4', level: 4, rate: settings?.level4_rate || 0.20, icon: '🔴', color: 'from-red-500/20 to-red-600/5', border: 'border-red-500/30' },
-    { name: 'Level 5', level: 5, rate: settings?.level5_rate || 0.25, icon: '💎', color: 'from-blue-500/20 to-blue-600/5', border: 'border-blue-500/30' },
+    { name: 'Level 1', level: 1, rate: 0.05, icon: '💚', color: 'from-green-500/20 to-green-600/5', border: 'border-green-500/30' },
+    { name: 'Level 2', level: 2, rate: 0.30, icon: '🤍', color: 'from-slate-500/20 to-slate-600/5', border: 'border-slate-500/30' },
+    { name: 'Level 3', level: 3, rate: 1.00, icon: '👑', color: 'from-yellow-500/20 to-yellow-600/5', border: 'border-yellow-500/30' },
+    { name: 'Level 4', level: 4, rate: 5.00, icon: '🔴', color: 'from-red-500/20 to-red-600/5', border: 'border-red-500/30' },
+    { name: 'Level 5', level: 5, rate: 10.00, icon: '💎', color: 'from-blue-500/20 to-blue-600/5', border: 'border-blue-500/30' },
   ]
 
-  const calculateAverageReturnRate = () => {
-    if (!user) return 0;
-    const unlockedLevels = levels.filter(l => l.level <= user.unlockedLevel);
-    if (unlockedLevels.length === 0) return 0;
-    const sum = unlockedLevels.reduce((acc, curr) => acc + curr.rate, 0);
-    return sum / unlockedLevels.length;
-  }
-
-  const calculateTotalDailyEarnings = () => {
-    if (!user) return 0;
-    let total = 0;
-    levels.forEach(l => {
-      const amount = parseFloat((user as any)[`level${l.level}_amount` as keyof UserProfile] || 0);
-      total += (amount * l.rate) / 100;
-    });
-    return total;
-  }
-
-  // Generate BTC price chart data
+  // Generate BTC price chart data with smooth line
   const generateChartData = () => {
-    const labels = ['1H', '4H', '1D', '1W', '1M'];
-    const basePrice = btcPrice;
+    const labels = ['1H', '4H', '1D', '1W', '1M']
+    const basePrice = btcPrice
     const priceData = [
       basePrice * 0.98,
       basePrice * 0.99,
       basePrice * 1.01,
       basePrice * 1.02,
       basePrice * 1.015,
-    ];
+    ]
 
     return {
       labels,
       datasets: [
         {
-          label: 'BTC Price (USD)',
+          label: 'BTC / USD',
           data: priceData,
           borderColor: '#f97316',
-          backgroundColor: 'rgba(249, 115, 22, 0.1)',
+          backgroundColor: (context: any) => {
+            const ctx = context.chart.ctx
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300)
+            gradient.addColorStop(0, 'rgba(249, 115, 22, 0.4)')
+            gradient.addColorStop(1, 'rgba(249, 115, 22, 0.01)')
+            return gradient
+          },
           borderWidth: 3,
           fill: true,
-          tension: 0.4,
-          pointRadius: 6,
+          tension: 0.45,
+          pointRadius: 5,
           pointBackgroundColor: '#f97316',
           pointBorderColor: '#fff',
           pointBorderWidth: 2,
-          pointHoverRadius: 8,
+          pointHoverRadius: 7,
+          pointHoverBorderWidth: 3,
         },
       ],
     }
   }
 
-  const chartOptions = {
+  const chartOptions: any = {
     responsive: true,
-    maintainAspectRatio: true,
+    maintainAspectRatio: false,
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
     plugins: {
       legend: {
         display: false,
       },
       tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#fff',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        titleColor: '#f97316',
         bodyColor: '#fff',
         borderColor: '#f97316',
-        borderWidth: 1,
-        padding: 12,
+        borderWidth: 2,
+        padding: 16,
         displayColors: false,
+        titleFont: {
+          size: 14,
+          weight: 'bold',
+        },
+        bodyFont: {
+          size: 13,
+        },
         callbacks: {
           label: function(context: any) {
-            return '$' + context.parsed.y.toLocaleString('en-US', { maximumFractionDigits: 2 });
+            return '$' + context.parsed.y.toLocaleString('en-US', { maximumFractionDigits: 2 })
           }
         }
       }
@@ -263,7 +251,7 @@ export default function Dashboard() {
             size: 12,
           },
           callback: function(value: any) {
-            return '$' + (value / 1000).toFixed(0) + 'k';
+            return '$' + (value / 1000).toFixed(0) + 'k'
           }
         }
       },
@@ -282,8 +270,17 @@ export default function Dashboard() {
     }
   }
 
-  const dynamicReturnRate = calculateAverageReturnRate();
-  const totalDailyEarnings = calculateTotalDailyEarnings();
+  const calculateTotalDailyEarnings = () => {
+    if (!user) return 0
+    let total = 0
+    levels.forEach(l => {
+      const amount = parseFloat((user as any)[`level${l.level}_amount` as keyof UserProfile] || 0)
+      total += (amount * l.rate) / 100
+    })
+    return total
+  }
+
+  const totalDailyEarnings = calculateTotalDailyEarnings()
 
   return (
     <div className="min-h-screen bg-[#0b0e11] text-[#eaecef] font-sans">
@@ -308,7 +305,7 @@ export default function Dashboard() {
               {(user?.role === 'admin' || user?.role === 'co-admin' || user?.role === 'master-admin') && (
                 <button
                   onClick={() => navigate('/admin')}
-                  className="px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-lg font-bold text-xs transition-all shadow-lg shadow-orange-500/10"
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-lg font-bold text-xs transition-all"
                 >
                   Admin
                 </button>
@@ -348,7 +345,7 @@ export default function Dashboard() {
           <div className="flex gap-3 w-full md:w-auto">
             <button
               onClick={() => navigate('/deposit')}
-              className="flex-1 md:flex-none px-8 py-3 bg-[#0ecb81] hover:bg-[#0ba368] text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-[#0ecb81]/10"
+              className="flex-1 md:flex-none px-8 py-3 bg-[#0ecb81] hover:bg-[#0ba368] text-white rounded-xl font-bold text-sm transition-all"
             >
               Deposit
             </button>
@@ -358,76 +355,43 @@ export default function Dashboard() {
             >
               Withdraw
             </button>
-            <button
-              onClick={() => navigate('/chat')}
-              className="p-3 bg-[#2b2f36] hover:bg-[#363a45] text-white rounded-xl border border-[#474d57] transition-all"
-              title="Support Chat"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-            </button>
           </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <div className="bg-[#1e2329] border border-[#2b2f36] p-6 rounded-3xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
+          <div className="bg-[#1e2329] border border-[#2b2f36] p-6 rounded-3xl">
             <p className="text-xs font-bold text-[#848e9c] uppercase tracking-widest mb-2">Total Investment</p>
-            <p className="text-3xl font-black text-white">${safeFormatUSD(user?.investmentAmount)}</p>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-orange-500/10 text-orange-500 rounded uppercase">Active</span>
-            </div>
+            <p className="text-3xl font-black text-white">${formatUSD(user?.investmentAmount)}</p>
           </div>
 
-          <div className="bg-[#1e2329] border border-[#2b2f36] p-6 rounded-3xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
+          <div className="bg-[#1e2329] border border-[#2b2f36] p-6 rounded-3xl">
             <p className="text-xs font-bold text-[#848e9c] uppercase tracking-widest mb-2">Trading Income</p>
-            <p className="text-3xl font-black text-[#0ecb81]">${safeFormatUSD(user?.tradingIncome)}</p>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-[#0ecb81]/10 text-[#0ecb81] rounded uppercase">VIP</span>
-            </div>
+            <p className="text-3xl font-black text-[#0ecb81]">${formatUSD(user?.tradingIncome)}</p>
           </div>
 
-          <div className="bg-[#1e2329] border border-[#2b2f36] p-6 rounded-3xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
+          <div className="bg-[#1e2329] border border-[#2b2f36] p-6 rounded-3xl">
             <p className="text-xs font-bold text-[#848e9c] uppercase tracking-widest mb-2">Daily Earnings</p>
-            <p className="text-3xl font-black text-yellow-500">${safeFormatUSD(totalDailyEarnings)}</p>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-yellow-500/10 text-yellow-500 rounded uppercase">24h Est.</span>
-            </div>
+            <p className="text-3xl font-black text-yellow-500">${formatUSD(totalDailyEarnings)}</p>
           </div>
         </div>
 
         {/* BTC Chart Section */}
         <div className="bg-[#1e2329] border border-[#2b2f36] rounded-3xl p-8 mb-10">
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-start mb-6">
             <div>
               <p className="text-xs font-bold text-[#848e9c] uppercase tracking-widest mb-2">BTC / USD</p>
               <h2 className="text-4xl font-black text-white">${btcPrice.toLocaleString()}</h2>
             </div>
             <div className="text-right">
-              <p className="text-xs font-bold text-[#848e9c] uppercase mb-2">24h High</p>
+              <p className="text-xs font-bold text-[#848e9c] uppercase mb-2">24H HIGH</p>
               <p className="text-2xl font-black text-[#0ecb81]">${(btcPrice * 1.02).toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
             </div>
           </div>
 
           {/* Chart Visualization */}
-          <div style={{ height: '280px', marginBottom: '24px' }}>
-            <Line data={generateChartData()} options={chartOptions as any} />
+          <div style={{ height: '300px', marginBottom: '24px', position: 'relative' }}>
+            <Line data={generateChartData()} options={chartOptions} />
           </div>
 
           {/* Chart Info */}
@@ -437,11 +401,11 @@ export default function Dashboard() {
               <p className="text-lg font-black text-white">+2.5%</p>
             </div>
             <div className="bg-[#0b0e11] rounded-xl p-4 border border-[#2b2f36]">
-              <p className="text-xs font-bold text-[#848e9c] uppercase mb-1">24h High</p>
+              <p className="text-xs font-bold text-[#848e9c] uppercase mb-1">24H High</p>
               <p className="text-lg font-black text-[#0ecb81]">${(btcPrice * 1.02).toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-[#0b0e11] rounded-xl p-4 border border-[#2b2f36]">
-              <p className="text-xs font-bold text-[#848e9c] uppercase mb-1">24h Low</p>
+              <p className="text-xs font-bold text-[#848e9c] uppercase mb-1">24H Low</p>
               <p className="text-lg font-black text-[#f6465d]">${(btcPrice * 0.98).toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-[#0b0e11] rounded-xl p-4 border border-[#2b2f36]">
@@ -458,10 +422,6 @@ export default function Dashboard() {
               <h2 className="text-2xl font-black text-white mb-1">Mining Levels</h2>
               <p className="text-[#848e9c] text-sm">Upgrade your level to increase your daily return rate.</p>
             </div>
-            <div className="hidden sm:block text-right">
-              <p className="text-[10px] text-[#848e9c] uppercase tracking-widest font-bold mb-1">Avg. Return Rate</p>
-              <p className="text-xl font-black text-[#0ecb81]">{formatPercent(dynamicReturnRate)}%</p>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -472,7 +432,7 @@ export default function Dashboard() {
               >
                 {!isLevelUnlocked(l.level) && (
                   <div className="absolute inset-0 bg-[#0b0e11]/60 backdrop-blur-[2px] flex items-center justify-center z-10">
-                    <div className="bg-[#1e2329] p-2 rounded-full border border-[#2b2f36] shadow-xl">
+                    <div className="bg-[#1e2329] p-2 rounded-full border border-[#2b2f36]">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#848e9c]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
@@ -487,7 +447,7 @@ export default function Dashboard() {
                   <p className="text-xs text-[#848e9c] mb-1">Level {l.level}</p>
                   <p className="text-lg font-black text-white mb-3">{l.name}</p>
                   <p className="text-xs text-[#848e9c] mb-1">Balance</p>
-                  <p className="text-xl font-black text-white">${safeFormatUSD((user as any)[`level${l.level}_amount` as keyof UserProfile] || 0)}</p>
+                  <p className="text-xl font-black text-white">${formatUSD((user as any)[`level${l.level}_amount` as keyof UserProfile] || 0)}</p>
                 </div>
               </div>
             ))}
@@ -495,8 +455,8 @@ export default function Dashboard() {
         </div>
 
         {/* VIP Trading Banner */}
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-3xl p-8 relative overflow-hidden group cursor-pointer" onClick={() => navigate('/trading')}>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/20 transition-all"></div>
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-3xl p-8 relative overflow-hidden cursor-pointer" onClick={() => navigate('/trading')}>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="text-center md:text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-black/20 rounded-full mb-4">
@@ -507,7 +467,7 @@ export default function Dashboard() {
               <p className="text-white/80 max-w-xl">Execute high-frequency trades with our automated system and earn up to 80% profit per trade. VIP access required.</p>
             </div>
             <div className="flex flex-col items-center gap-3">
-              <button className="px-10 py-4 bg-white text-orange-600 rounded-xl font-black text-lg hover:bg-orange-50 transition-all shadow-xl shadow-black/10">
+              <button className="px-10 py-4 bg-white text-orange-600 rounded-xl font-black text-lg hover:bg-orange-50 transition-all">
                 {user?.vipUnlocked ? 'ENTER TRADING' : 'UNLOCK VIP'}
               </button>
               <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Powered by Digging Pool AI</p>
