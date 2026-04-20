@@ -1174,26 +1174,46 @@ const possiblePaths = [
   '/app/dist/public'
 ];
 
-let distPath = possiblePaths[0];
+console.log('\n=== STATIC FILES DIAGNOSTIC ===');
+console.log('Current working directory:', process.cwd());
+console.log('__dirname:', __dirname);
+console.log('Checking possible paths:');
+
+let distPath = null;
 for (const p of possiblePaths) {
-  console.log(`Checking static path: ${p} - Exists: ${fs.existsSync(p)}`);
-  if (fs.existsSync(p)) {
+  const exists = fs.existsSync(p);
+  console.log(`  ${exists ? '✓' : '✗'} ${p}`);
+  if (exists && !distPath) {
     distPath = p;
-    break;
+    const files = fs.readdirSync(p);
+    console.log(`    Files in ${p}:`, files);
   }
 }
 
+if (!distPath) {
+  console.error('ERROR: No static files directory found!');
+  distPath = '/app/dist/public';
+}
+
 console.log('Final static files path:', distPath);
+console.log('=== END DIAGNOSTIC ===\n');
 
-app.use(express.static(distPath, {
-  maxAge: '1d',
-  etag: false
-}));
-
-app.use('/assets', express.static(path.join(distPath, 'assets'), {
-  maxAge: '1y',
-  etag: false
-}));
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath, {
+    maxAge: '1d',
+    etag: false
+  }));
+  
+  const assetsPath = path.join(distPath, 'assets');
+  if (fs.existsSync(assetsPath)) {
+    app.use('/assets', express.static(assetsPath, {
+      maxAge: '1y',
+      etag: false
+    }));
+  }
+} else {
+  console.warn('WARNING: Static files directory does not exist at', distPath);
+}
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
