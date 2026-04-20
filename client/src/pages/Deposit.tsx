@@ -121,7 +121,7 @@ export default function Deposit() {
     { value: 3, label: `Level 3 (${levelRates[3]}%)` },
     { value: 4, label: `Level 4 (${levelRates[4]}%)` },
     { value: 5, label: `Level 5 (${levelRates[5]}%)` },
-    { value: 6, label: 'VIP Trading (${levelRates[6]}%)` },
+    { value: 6, label: `VIP Trading (${levelRates[6]}%)` },
   ]
 
   return (
