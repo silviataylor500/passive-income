@@ -141,6 +141,12 @@ async function initDatabase() {
       } catch (e) {}
     }
 
+    // Add VIP amount column
+    try {
+      await connection.execute(`ALTER TABLE users ADD COLUMN vip_amount DECIMAL(10, 2) DEFAULT 0`);
+      console.log('vip_amount column added to users table');
+    } catch (e) {}
+
     // MIGRATION: For existing users who have investmentAmount but level0_amount is 0
     // We move their investmentAmount into level0_amount (BASIC level)
     try {
@@ -814,7 +820,9 @@ app.post('/api/admin/deposits/:id/approve', authMiddleware, adminMiddleware, asy
     // Get the rate for this level from settings
     const [settings] = await connection.execute('SELECT * FROM settings WHERE chain = ?', [deposit.chain]);
     let newRate = 0.05; // Default basic rate
-    if (settings.length > 0 && deposit.level > 0) {
+    if (deposit.level === 6) {
+      newRate = 80.00; // Fixed VIP Trading rate
+    } else if (settings.length > 0 && deposit.level > 0) {
       newRate = settings[0][`level${deposit.level}_rate`] || 0.05;
     }
 
@@ -825,7 +833,7 @@ app.post('/api/admin/deposits/:id/approve', authMiddleware, adminMiddleware, asy
     const newInvestmentAmount = parseFloat(user.investmentAmount) + parseFloat(deposit.amount);
     const btcPrice = await getBtcPrice();
     const newBtcAllocated = newInvestmentAmount / btcPrice;
-    const levelCol = `level${deposit.level}_amount`;
+    const levelCol = deposit.level === 6 ? 'vip_amount' : `level${deposit.level}_amount`;
     const newLevelAmount = parseFloat(user[levelCol] || 0) + parseFloat(deposit.amount);
 
     // Update user's unlocked level, daily return rate, investment amounts, and BTC allocation
