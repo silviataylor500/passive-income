@@ -1168,10 +1168,8 @@ app.post('/api/admin/settings/vip-rate', authMiddleware, adminMiddleware, async 
 // Static files
 // Define the path to the frontend build
 const possiblePaths = [
-  path.resolve(__dirname, '../dist/public'),
   path.resolve(process.cwd(), 'dist/public'),
-  path.resolve(process.cwd(), 'client/dist/public'),
-  path.resolve(__dirname, '../client/dist/public'),
+  path.resolve(__dirname, '../dist/public'),
   '/app/dist/public'
 ];
 
@@ -1209,11 +1207,15 @@ if (fs.existsSync(distPath)) {
 }
 
 app.get('*', (req, res) => {
+  console.log(`[Request] ${req.method} ${req.path}`);
+  
   if (req.path.startsWith('/api')) {
+    console.log(`  -> 404 API Not Found`);
     return res.status(404).json({ message: 'API endpoint not found' });
   }
   
   if (req.path.startsWith('/assets/')) {
+    console.log(`  -> 404 Asset Not Found: ${req.path}`);
     return res.status(404).send('Asset not found');
   }
   
