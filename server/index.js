@@ -56,7 +56,14 @@ async function initDatabase() {
   try {
     await createDatabasePool();
     console.log('Attempting to connect to the database...');
-    const connection = await pool.getConnection();
+    
+    // Add a timeout to the connection attempt
+    const connectionPromise = pool.getConnection();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database connection timeout (10 seconds)')), 10000)
+    );
+
+    const connection = await Promise.race([connectionPromise, timeoutPromise]);
     console.log('Successfully connected to the database.');
     
     // Create users table with chain and level support
