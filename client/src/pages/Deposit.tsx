@@ -115,13 +115,13 @@ export default function Deposit() {
 
   // v2 - VIP AT TOP - FORCE REFRESH
   const levels = [
-    { value: 6, label: '★ VIP TRADING (80%) ★' },
     { value: 0, label: `BASIC (${levelRates[0]}%)` },
     { value: 1, label: `Level 1 (${levelRates[1]}%)` },
     { value: 2, label: `Level 2 (${levelRates[2]}%)` },
     { value: 3, label: `Level 3 (${levelRates[3]}%)` },
     { value: 4, label: `Level 4 (${levelRates[4]}%)` },
     { value: 5, label: `Level 5 (${levelRates[5]}%)` },
+    { value: 6, label: '★ VIP TRADING (upto 80%) ★' },
   ]
 
   return (
