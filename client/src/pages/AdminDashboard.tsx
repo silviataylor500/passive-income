@@ -82,6 +82,7 @@ export default function AdminDashboard() {
   const [trc20Address, setTrc20Address] = useState<string>('')
   const [newTrc20Address, setNewTrc20Address] = useState<string>('')
   const [levelRates, setLevelRates] = useState<Record<string, number>>({
+    level0: 0.05,
     level1: 0.05,
     level2: 0.10,
     level3: 0.15,
@@ -168,6 +169,7 @@ export default function AdminDashboard() {
       if (response.data) {
         setTrc20Address(response.data.trc20_address || '')
         setLevelRates({
+          level0: response.data.level0_rate || 0.05,
           level1: response.data.level1_rate || 0.05,
           level2: response.data.level2_rate || 0.10,
           level3: response.data.level3_rate || 0.15,
@@ -327,6 +329,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem('token')
       await axios.post('/api/admin/settings/update', {
         trc20_address: newTrc20Address || trc20Address,
+        level0_rate: levelRates.level0,
         level1_rate: levelRates.level1,
         level2_rate: levelRates.level2,
         level3_rate: levelRates.level3,

@@ -178,6 +178,7 @@ async function initDatabase() {
         level3_rate DECIMAL(5, 2) DEFAULT 0.15,
         level4_rate DECIMAL(5, 2) DEFAULT 0.20,
         level5_rate DECIMAL(5, 2) DEFAULT 0.25,
+        level0_rate DECIMAL(5, 2) DEFAULT 0.05,
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY unique_chain (chain)
@@ -200,8 +201,8 @@ async function initDatabase() {
     }
 
     // Add level rate columns to settings if they don't exist
-    const levelRates = ['level1_rate', 'level2_rate', 'level3_rate', 'level4_rate', 'level5_rate'];
-    const defaultRates = [0.05, 0.10, 0.15, 0.20, 0.25];
+    const levelRates = ['level0_rate', 'level1_rate', 'level2_rate', 'level3_rate', 'level4_rate', 'level5_rate'];
+    const defaultRates = [0.05, 0.05, 0.10, 0.15, 0.20, 0.25];
     for (let i = 0; i < levelRates.length; i++) {
       try {
         await connection.execute(`ALTER TABLE settings ADD COLUMN ${levelRates[i]} DECIMAL(5, 2) DEFAULT ${defaultRates[i]}`);
@@ -643,7 +644,7 @@ app.get('/api/settings/all', authMiddleware, async (req, res) => {
     const targetChain = (req.user.role === 'master-admin' && chain) ? parseInt(chain) : req.user.chain;
     
     const [settings] = await connection.execute(
-      'SELECT trc20_address, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate FROM settings WHERE chain = ?',
+      'SELECT trc20_address, level0_rate, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate FROM settings WHERE chain = ?',
       [targetChain]
     );
     connection.release();
@@ -651,6 +652,7 @@ app.get('/api/settings/all', authMiddleware, async (req, res) => {
     if (settings.length === 0) {
       return res.json({
         trc20_address: '',
+        level0_rate: 0.05,
         level1_rate: 0.05,
         level2_rate: 0.10,
         level3_rate: 0.15,
@@ -682,7 +684,7 @@ app.get('/api/settings/trc20', authMiddleware, async (req, res) => {
 // Admin: Update settings (TRC20 and level rates) for their chain
 app.post('/api/admin/settings/update', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { trc20_address, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate, chain } = req.body;
+    const { trc20_address, level0_rate, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate, chain } = req.body;
 
     const targetChain = (req.user.role === 'master-admin' && chain) ? chain : req.user.chain;
     const connection = await pool.getConnection();
@@ -690,10 +692,11 @@ app.post('/api/admin/settings/update', authMiddleware, adminMiddleware, async (r
     // Use ON DUPLICATE KEY UPDATE to handle both insert and update
     await connection.execute(`
       INSERT INTO settings (
-        chain, trc20_address, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        chain, trc20_address, level0_rate, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         trc20_address = VALUES(trc20_address),
+        level0_rate = VALUES(level0_rate),
         level1_rate = VALUES(level1_rate),
         level2_rate = VALUES(level2_rate),
         level3_rate = VALUES(level3_rate),
@@ -702,6 +705,7 @@ app.post('/api/admin/settings/update', authMiddleware, adminMiddleware, async (r
     `, [
       targetChain,
       trc20_address || '',
+      level0_rate || 0.05,
       level1_rate || 0.05,
       level2_rate || 0.10,
       level3_rate || 0.15,

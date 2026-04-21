@@ -50,6 +50,7 @@ interface UserProfile {
 }
 
 interface Settings {
+  level0_rate: number
   level1_rate: number
   level2_rate: number
   level3_rate: number
@@ -158,12 +159,12 @@ export default function Dashboard() {
   }
 
   const levels = [
-    { name: 'Basic', level: 0, rate: 0.05, icon: '⚡', color: 'from-orange-500/20 to-orange-600/5', border: 'border-orange-500/30' },
-    { name: 'Level 1', level: 1, rate: 0.05, icon: '💚', color: 'from-green-500/20 to-green-600/5', border: 'border-green-500/30' },
-    { name: 'Level 2', level: 2, rate: 0.30, icon: '🤍', color: 'from-slate-500/20 to-slate-600/5', border: 'border-slate-500/30' },
-    { name: 'Level 3', level: 3, rate: 1.00, icon: '👑', color: 'from-yellow-500/20 to-yellow-600/5', border: 'border-yellow-500/30' },
-    { name: 'Level 4', level: 4, rate: 5.00, icon: '🔴', color: 'from-red-500/20 to-red-600/5', border: 'border-red-500/30' },
-    { name: 'Level 5', level: 5, rate: 10.00, icon: '💎', color: 'from-blue-500/20 to-blue-600/5', border: 'border-blue-500/30' },
+    { name: 'Basic', level: 0, rate: settings?.level0_rate || 0.05, icon: '⚡', color: 'from-orange-500/20 to-orange-600/5', border: 'border-orange-500/30' },
+    { name: 'Level 1', level: 1, rate: settings?.level1_rate || 0.05, icon: '💚', color: 'from-green-500/20 to-green-600/5', border: 'border-green-500/30' },
+    { name: 'Level 2', level: 2, rate: settings?.level2_rate || 0.30, icon: '🤍', color: 'from-slate-500/20 to-slate-600/5', border: 'border-slate-500/30' },
+    { name: 'Level 3', level: 3, rate: settings?.level3_rate || 1.00, icon: '👑', color: 'from-yellow-500/20 to-yellow-600/5', border: 'border-yellow-500/30' },
+    { name: 'Level 4', level: 4, rate: settings?.level4_rate || 5.00, icon: '🔴', color: 'from-red-500/20 to-red-600/5', border: 'border-red-500/30' },
+    { name: 'Level 5', level: 5, rate: settings?.level5_rate || 10.00, icon: '💎', color: 'from-blue-500/20 to-blue-600/5', border: 'border-blue-500/30' },
   ]
 
   // Generate BTC price chart data with smooth line
@@ -447,8 +448,19 @@ export default function Dashboard() {
                   </div>
                   <p className="text-xs text-[#848e9c] mb-1">Level {l.level}</p>
                   <p className="text-lg font-black text-white mb-3">{l.name}</p>
-                  <p className="text-xs text-[#848e9c] mb-1">Balance</p>
-                  <p className="text-xl font-black text-white">${formatUSD((user as any)[`level${l.level}_amount` as keyof UserProfile] || 0)}</p>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[10px] font-bold text-[#848e9c] uppercase tracking-tighter mb-1">Balance</p>
+                      <p className="text-sm font-black text-white">${formatUSD((user as any)[`level${l.level}_amount` as keyof UserProfile] || 0)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold text-yellow-500 uppercase tracking-tighter mb-1">Daily Earning</p>
+                      <p className="text-sm font-black text-yellow-500">
+                        ${formatUSD((parseFloat((user as any)[`level${l.level}_amount` as keyof UserProfile] || 0) * l.rate) / 100)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

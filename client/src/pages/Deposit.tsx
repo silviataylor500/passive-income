@@ -33,12 +33,12 @@ export default function Deposit() {
       })
       setTrc20Address(response.data.trc20_address || '')
       setLevelRates([
-        0.05, // Basic level default
-        response.data.level1_rate,
-        response.data.level2_rate,
-        response.data.level3_rate,
-        response.data.level4_rate,
-        response.data.level5_rate
+        response.data.level0_rate || 0.05,
+        response.data.level1_rate || 0.05,
+        response.data.level2_rate || 0.10,
+        response.data.level3_rate || 0.15,
+        response.data.level4_rate || 0.20,
+        response.data.level5_rate || 0.25
       ])
       setLoading(false)
     } catch (err: any) {
