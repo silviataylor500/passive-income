@@ -95,6 +95,7 @@ export default function AdminDashboard() {
   const [adminChain, setAdminChain] = useState<number>(1)
   const [replyMessage, setReplyMessage] = useState<string>('')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [vipProfitRate, setVipProfitRate] = useState<number>(20)
   
   // Filter states
   const [userChainFilter, setUserChainFilter] = useState<string>('all')
@@ -327,7 +328,9 @@ export default function AdminDashboard() {
   const handleUpdateSettings = async () => {
     try {
       const token = localStorage.getItem('token')
-      await axios.post('/api/admin/settings/update', {
+      
+      // 1. Update basic settings
+      const settingsPromise = axios.post('/api/admin/settings/update', {
         trc20_address: newTrc20Address || trc20Address,
         level0_rate: levelRates.level0,
         level1_rate: levelRates.level1,
@@ -338,15 +341,17 @@ export default function AdminDashboard() {
         chain: adminRole === 'master-admin' ? settingsChain : undefined
       }, {
         headers: { Authorization: `Bearer ${token}` },
-      })
+      });
       
-      // Update VIP rate separately
-      await axios.post('/api/admin/settings/vip-rate', {
+      // 2. Update VIP rate
+      const vipPromise = axios.post('/api/admin/settings/vip-rate', {
         chain: adminRole === 'master-admin' ? settingsChain : adminChain,
         profitRate: vipProfitRate
       }, {
         headers: { Authorization: `Bearer ${token}` },
-      })
+      });
+
+      await Promise.all([settingsPromise, vipPromise]);
 
       if (newTrc20Address) {
         setTrc20Address(newTrc20Address)
@@ -354,7 +359,8 @@ export default function AdminDashboard() {
       }
       alert('Settings updated successfully!')
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Update failed')
+      console.error('Update settings error:', err);
+      alert(err.response?.data?.message || 'Update failed. Please check your connection and try again.');
     }
   }
 
@@ -958,6 +964,19 @@ export default function AdminDashboard() {
                     </div>
                   ))}
 
+                  <div className="col-span-2 mt-4 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                    <label className="block text-orange-500 text-sm font-bold mb-2 uppercase tracking-wider">Global VIP Profit Rate (%)</label>
+                    <select
+                      value={vipProfitRate}
+                      onChange={(e) => setVipProfitRate(parseInt(e.target.value))}
+                      className="w-full bg-slate-900 border border-orange-500/30 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-orange-500"
+                    >
+                      {[20, 30, 50, 75, 80].map(rate => (
+                        <option key={rate} value={rate}>{rate}%</option>
+                      ))}
+                    </select>
+                    <p className="text-slate-500 text-[10px] mt-2 uppercase font-bold">This sets the default profit rate for all VIP trades on this chain.</p>
+                  </div>
                 </div>
 
                 <button

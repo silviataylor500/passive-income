@@ -644,7 +644,7 @@ app.get('/api/settings/all', authMiddleware, async (req, res) => {
     const targetChain = (req.user.role === 'master-admin' && chain) ? parseInt(chain) : req.user.chain;
     
     const [settings] = await connection.execute(
-      'SELECT trc20_address, level0_rate, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate FROM settings WHERE chain = ?',
+      'SELECT trc20_address, level0_rate, level1_rate, level2_rate, level3_rate, level4_rate, level5_rate, vip_profit_rate FROM settings WHERE chain = ?',
       [targetChain]
     );
     connection.release();
@@ -657,7 +657,8 @@ app.get('/api/settings/all', authMiddleware, async (req, res) => {
         level2_rate: 0.10,
         level3_rate: 0.15,
         level4_rate: 0.20,
-        level5_rate: 0.25
+        level5_rate: 0.25,
+        vip_profit_rate: 20
       });
     }
 
