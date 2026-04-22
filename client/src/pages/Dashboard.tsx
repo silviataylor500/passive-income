@@ -357,6 +357,12 @@ export default function Dashboard() {
             >
               Withdraw
             </button>
+            <button
+              onClick={() => navigate('/chat')}
+              className="flex-1 md:flex-none px-8 py-3 bg-yellow-500 hover:bg-yellow-400 text-slate-900 rounded-xl font-bold text-sm transition-all"
+            >
+              Support Chat
+            </button>
           </div>
         </div>
 
@@ -495,7 +501,7 @@ export default function Dashboard() {
             <span className="text-xs text-[#474d57]">© 2026 Digging Pool. All rights reserved.</span>
           </div>
           <div className="flex gap-6">
-            <span className="text-xs text-[#848e9c] hover:text-white cursor-pointer transition-colors">Support</span>
+            <span onClick={() => navigate('/chat')} className="text-xs text-[#848e9c] hover:text-white cursor-pointer transition-colors">Support</span>
             <span className="text-xs text-[#848e9c] hover:text-white cursor-pointer transition-colors">Security</span>
             <span className="text-xs text-[#848e9c] hover:text-white cursor-pointer transition-colors">Privacy</span>
           </div>

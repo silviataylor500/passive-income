@@ -43,7 +43,7 @@ export default function Withdrawal() {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      await axios.post('/api/withdrawal/submit', {
+      await axios.post('/api/withdrawals/submit', {
         amount: amountNum,
         trc20_address: trc20Address,
       }, {
