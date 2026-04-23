@@ -1099,7 +1099,7 @@ app.post('/api/chat/send', authMiddleware, upload.single('image'), async (req, r
     console.error('Chat message error:', error.message);
     res.status(500).json({ message: `Failed to send message: ${error.message}` });
   }
-}););
+});
 
 // Co-Admin: Get chat messages for their chain
 app.get('/api/admin/chat', authMiddleware, coAdminMiddleware, async (req, res) => {
