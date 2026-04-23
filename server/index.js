@@ -851,7 +851,7 @@ app.get('/api/admin/deposits', authMiddleware, adminMiddleware, async (req, res)
   try {
     const connection = await pool.getConnection();
     let query = `
-      SELECT d.id, d.userId, u.name, u.email, d.amount, d.transactionId, d.level, d.status, d.createdAt, d.chain
+      SELECT d.id, d.userId, u.name, u.email, d.amount, d.transactionId, d.imagePath, d.level, d.status, d.createdAt, d.chain
       FROM deposits d
       JOIN users u ON d.userId = u.id
     `;
@@ -1106,7 +1106,7 @@ app.get('/api/admin/chat', authMiddleware, coAdminMiddleware, async (req, res) =
   try {
     const connection = await pool.getConnection();
     let query = `
-      SELECT m.id, m.userId, u.name, u.email, m.message, m.senderRole, m.createdAt, m.chain
+      SELECT m.id, m.userId, u.name, u.email, m.message, m.imagePath, m.senderRole, m.createdAt, m.chain
       FROM messages m
       JOIN users u ON m.userId = u.id
     `;
@@ -1132,7 +1132,7 @@ app.get('/api/chat/messages', authMiddleware, async (req, res) => {
   try {
     const connection = await pool.getConnection();
     const [messages] = await connection.execute(
-      'SELECT id, userId, message, senderRole, createdAt FROM messages WHERE userId = ? AND chain = ? ORDER BY createdAt ASC',
+      'SELECT id, userId, message, imagePath, senderRole, createdAt FROM messages WHERE userId = ? AND chain = ? ORDER BY createdAt ASC',
       [req.user.id, req.user.chain]
     );
     connection.release();
